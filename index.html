@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>智驾研究台</title>
+  <meta name="description" content="个人自用智能驾驶研究专用平台 - 方案对比·版本追踪·实测测评" />
+  <link rel="icon" href="favicon.ico" sizes="256x256" type="image/x-icon" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- 顶部导航栏 -->
+  <header class="navbar">
+    <div class="navbar-brand">
+      <span class="brand-icon">🚗</span>
+      <span class="brand-text">智驾研究台</span>
+    </div>
+    <div class="navbar-actions">
+      <span class="nav-badge">研</span>
+    </div>
+  </header>
+
+  <!-- 主内容区 -->
+  <div class="main-layout">
+    <!-- 侧边栏 -->
+    <aside class="sidebar">
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item active" data-page="home">
+          <span class="nav-icon">🏠</span>首页动态
+        </a>
+        <a href="#" class="nav-item" data-page="compare">
+          <span class="nav-icon">📊</span>方案对比
+        </a>
+        <a href="#" class="nav-item" data-page="matrix">
+          <span class="nav-icon">🧩</span>功能矩阵
+        </a>
+        <a href="#" class="nav-item" data-page="versions">
+          <span class="nav-icon">📦</span>版本中心
+        </a>
+        <a href="#" class="nav-item" data-page="ota">
+          <span class="nav-icon">🔄</span>OTA追踪
+        </a>
+        <a href="#" class="nav-item" data-page="test">
+          <span class="nav-icon">🧪</span>实测测评
+        </a>
+        <a href="#" class="nav-item" data-page="dataviz">
+          <span class="nav-icon">📈</span>数据可视化
+        </a>
+        <a href="#" class="nav-item" data-page="glossary">
+          <span class="nav-icon">📖</span>术语百科
+        </a>
+        <a href="#" class="nav-item" data-page="regulation">
+          <span class="nav-icon">⚖️</span>法规标准
+        </a>
+        <a href="#" class="nav-item" data-page="collect">
+          <span class="nav-icon">💾</span>数据采集
+        </a>
+        <a href="#" class="nav-item" data-page="favorites">
+          <span class="nav-icon">⭐</span>我的收藏
+        </a>
+      </nav>
+      <div class="sidebar-tags">
+        <h3 class="tag-title">快捷标签</h3>
+        <div class="tag-list">
+          <span class="tag tag-huawei">华为ADS</span>
+          <span class="tag tag-tesla">特斯拉FSD</span>
+          <span class="tag tag-xpeng">小鹏XNGP</span>
+          <span class="tag tag-lixiang">理想AD Max</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 内容区 -->
+    <main class="content">
+      <!-- 首页动态 -->
+      <div class="page active" id="page-home">
+        <div class="page-header">
+          <div class="page-title-row">
+            <h1 class="page-title">首页动态</h1>
+            <p class="page-subtitle">智能驾驶行业最新动态与数据概览</p>
+          </div>
+          <div class="page-actions">
+            <div class="search-box">
+              <span class="search-icon">🔍</span>
+              <input type="text" placeholder="搜索" />
+            </div>
+            <button class="btn-refresh" onclick="location.reload()">🔄 刷新</button>
+          </div>
+        </div>
+
+        <!-- 统计卡片 -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-number">12</div>
+            <div class="stat-label">监测方案总数</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">11</div>
+            <div class="stat-label">近期版本更新</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">12</div>
+            <div class="stat-label">实测记录数</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">12</div>
+            <div class="stat-label">活跃品牌数</div>
+          </div>
+        </div>
+
+        <!-- 最新动态 -->
+        <section class="section">
+          <h2 class="section-title">最新动态</h2>
+          <div class="filter-tabs">
+            <button class="filter-tab active" data-filter="all">全部</button>
+            <button class="filter-tab" data-filter="ota">OTA</button>
+            <button class="filter-tab" data-filter="test">实测</button>
+            <button class="filter-tab" data-filter="review">评测</button>
+            <button class="filter-tab" data-filter="reputation">口碑</button>
+            <button class="filter-tab" data-filter="industry">行业</button>
+          </div>
+          <div class="news-list" id="news-list">
+            <!-- 动态由 JS 填充 -->
+          </div>
+        </section>
+
+        <!-- 方案评分 -->
+        <section class="section">
+          <h2 class="section-title">方案评分</h2>
+          <div class="score-grid" id="score-grid">
+            <!-- 评分卡片由 JS 填充 -->
+          </div>
+        </section>
+
+        <!-- 近期版本更新 -->
+        <section class="section">
+          <div class="section-header">
+            <h2 class="section-title">近期版本更新</h2>
+            <a href="#" class="section-link" data-page="versions">版本中心 →</a>
+          </div>
+          <div class="version-list" id="version-list">
+            <!-- 版本列表由 JS 填充 -->
+          </div>
+        </section>
+
+        <!-- 问题追踪 -->
+        <section class="section">
+          <div class="section-header">
+            <h2 class="section-title">问题追踪</h2>
+            <a href="#" class="section-link">查看全部 →</a>
+          </div>
+          <div class="issue-list" id="issue-list">
+            <!-- 问题列表由 JS 填充 -->
+          </div>
+        </section>
+      </div>
+
+      <!-- 方案对比页 -->
+      <div class="page" id="page-compare">
+        <h1 class="page-title">方案对比</h1>
+        <p class="page-subtitle">各智能驾驶方案核心参数对比</p>
+        <div class="compare-table-wrap">
+          <table class="compare-table" id="compare-table">
+            <!-- 由 JS 填充 -->
+          </table>
+        </div>
+      </div>
+
+      <!-- 功能矩阵页 -->
+      <div class="page" id="page-matrix">
+        <h1 class="page-title">功能矩阵</h1>
+        <p class="page-subtitle">各方案功能支持情况一览</p>
+        <div class="matrix-table-wrap">
+          <table class="matrix-table" id="matrix-table">
+            <!-- 由 JS 填充 -->
+          </table>
+        </div>
+      </div>
+
+      <!-- 版本中心页 -->
+      <div class="page" id="page-versions">
+        <h1 class="page-title">版本中心</h1>
+        <p class="page-subtitle">各方案版本更新历史</p>
+        <div class="version-timeline" id="version-timeline">
+          <!-- 由 JS 填充 -->
+        </div>
+      </div>
+
+      <!-- OTA追踪页 -->
+      <div class="page" id="page-ota">
+        <h1 class="page-title">OTA追踪</h1>
+        <p class="page-subtitle">实时追踪各品牌OTA推送进度</p>
+        <div class="ota-list" id="ota-list">
+          <!-- 由 JS 填充 -->
+        </div>
+      </div>
+
+      <!-- 实测测评页 -->
+      <div class="page" id="page-test">
+        <h1 class="page-title">实测测评</h1>
+        <p class="page-subtitle">真实场景下的智能驾驶能力测评</p>
+        <div class="test-list" id="test-list">
+          <!-- 由 JS 填充 -->
+        </div>
+      </div>
+
+      <!-- 数据可视化页 -->
+      <div class="page" id="page-dataviz">
+        <h1 class="page-title">数据可视化</h1>
+        <p class="page-subtitle">智能驾驶行业数据图表分析</p>
+        <div class="chart-container" id="chart-container">
+          <div class="chart-card">
+            <h3>方案综合评分对比</h3>
+            <canvas id="radar-chart"></canvas>
+          </div>
+          <div class="chart-card">
+            <h3>OTA更新频率</h3>
+            <canvas id="bar-chart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- 术语百科页 -->
+      <div class="page" id="page-glossary">
+        <h1 class="page-title">术语百科</h1>
+        <p class="page-subtitle">智能驾驶专业术语解读</p>
+        <div class="glossary-list" id="glossary-list">
+          <!-- 由 JS 填充 -->
+        </div>
+      </div>
+
+      <!-- 法规标准页 -->
+      <div class="page" id="page-regulation">
+        <h1 class="page-title">法规标准</h1>
+        <p class="page-subtitle">智能驾驶相关法规与标准追踪</p>
+        <div class="regulation-list" id="regulation-list"></div>
+      </div>
+
+      <!-- 数据采集页 -->
+      <div class="page" id="page-collect">
+        <h1 class="page-title">数据采集</h1>
+        <p class="page-subtitle">智能驾驶相关数据采集工具</p>
+        <div class="collect-tools">
+          <div class="tool-card">
+            <h3>📋 数据导入</h3>
+            <p>支持从公开数据源导入智能驾驶相关数据</p>
+            <button class="btn-primary" onclick="alert('功能开发中')">开始导入</button>
+          </div>
+          <div class="tool-card">
+            <h3>📝 手动录入</h3>
+            <p>手动录入OTA更新、实测数据等信息</p>
+            <button class="btn-primary" onclick="alert('功能开发中')">开始录入</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 我的收藏页 -->
+      <div class="page" id="page-favorites">
+        <h1 class="page-title">我的收藏</h1>
+        <p class="page-subtitle">收藏的动态、版本、测评内容</p>
+        <div class="favorites-list" id="favorites-list">
+          <div class="empty-state">
+            <span class="empty-icon">⭐</span>
+            <p>暂无收藏内容</p>
+            <p class="empty-hint">浏览动态时可点击收藏按钮添加</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
