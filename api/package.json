@@ -1,0 +1,11 @@
+{
+  "name": "zhijia-research-api",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --import meta-resolve --watch src/index.ts"
+  },
+  "dependencies": {
+    "apify": "^3.8.0"
+  }
+}
