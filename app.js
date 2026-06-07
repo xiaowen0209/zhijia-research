@@ -307,8 +307,8 @@ function renderVersionDetailCard(v, color) {
         <span class="vdetail-date">${v.date}</span>
       </div>
       ${(v.chip || v.arch) ? `<div class="vdetail-meta">
-        ${v.chip ? `<span>🔧 ${v.chip}</span>` : ''}
-        ${v.arch ? `<span>🏗️ ${v.arch}</span>` : ''}
+        ${v.chip ? `<span>${v.chip}</span>` : ''}
+        ${v.arch ? `<span>${v.arch}</span>` : ''}
       </div>` : ''}
       ${features.length ? `<div class="vdetail-features">${features.map(f => `<span class="vdetail-tag">${f}</span>`).join('')}</div>` : ''}
       <div class="vdetail-desc">${v.desc}</div>
@@ -367,7 +367,7 @@ function renderTestList() {
   container.innerHTML = allTests.map(t => `
     <div class="test-card">
       <div class="test-header"><div class="test-title">${t.title}</div><span class="version-badge" style="background:${BRAND_COLORS[t.brand]||'#555'};width:30px;height:30px;font-size:12px">${t.brand}</span></div>
-      <div class="test-meta"><span>📅 ${t.date}</span><span>📍 ${t.location||''}</span><span>🚗 ${t.vehicle||''}</span>${t.weather?`<span>🌤️ ${t.weather}</span>`:''}${t.mileage?`<span>📏 ${t.mileage}km</span>`:''}</div>
+      <div class="test-meta"><span>${t.date}</span><span>地点: ${t.location||''}</span><span>车型: ${t.vehicle||''}</span>${t.weather?`<span>天气: ${t.weather}</span>`:''}${t.mileage?`<span>里程: ${t.mileage}km</span>`:''}</div>
       ${t.scenes?.length ? `<div class="test-scenes">${t.scenes.map(s=>`<span class="test-scene-tag">${s}</span>`).join('')}</div>` : ''}
       <div class="test-scores">
         ${testScore('城区',t.score?.city,'#4a90d9')}${testScore('高速',t.score?.highway,'#3d9970')}${testScore('泊车',t.score?.parking,'#ff9800')}
@@ -424,9 +424,9 @@ function renderCollectPage() {
 
   formArea.innerHTML = `
     <div class="collect-tabs">
-      <button class="collect-tab ${recordTab==='ota'?'active':''}" onclick="switchRecordTab('ota')">📋 OTA录入</button>
-      <button class="collect-tab ${recordTab==='test'?'active':''}" onclick="switchRecordTab('test')">🧪 实测录入</button>
-      <button class="collect-tab ${recordTab==='issue'?'active':''}" onclick="switchRecordTab('issue')">⚠️ 问题录入</button>
+      <button class="collect-tab ${recordTab==='ota'?'active':''}" onclick="switchRecordTab('ota')">OTA录入</button>
+      <button class="collect-tab ${recordTab==='test'?'active':''}" onclick="switchRecordTab('test')">实测录入</button>
+      <button class="collect-tab ${recordTab==='issue'?'active':''}" onclick="switchRecordTab('issue')">问题录入</button>
     </div>
 
     <!-- OTA表单 -->
@@ -535,7 +535,7 @@ async function startScrape() {
 
   // Show loading state
   document.getElementById('btn-scrape').disabled = true;
-  document.getElementById('scrape-status').innerHTML = '<span class="scrape-status-loading">⏳ 抓取中...</span>';
+  document.getElementById('scrape-status').innerHTML = '<span class="scrape-status-loading">抓取中...</span>';
   document.getElementById('scrape-results').innerHTML = '<div class="scrape-loading">正在搜索和抓取内容，请稍候...</div>';
 
   try {
@@ -872,9 +872,9 @@ function renderRecordsSection(area) {
   area.innerHTML = `
     <h3>已录入记录</h3>
     <div class="collect-stats-row">
-      <span class="cstat cstat-ota">📋 OTA <b>${otaN}</b></span>
-      <span class="cstat cstat-test">🧪 实测 <b>${testN}</b></span>
-      <span class="cstat cstat-issue">⚠️ 问题 <b>${issueN}</b></span>
+      <span class="cstat cstat-ota">OTA <b>${otaN}</b></span>
+      <span class="cstat cstat-test">实测 <b>${testN}</b></span>
+      <span class="cstat cstat-issue">问题 <b>${issueN}</b></span>
       <span class="cstat cstat-total">合计 <b>${allRecords.length}</b></span>
     </div>
     ${allRecords.length === 0 ? `<div class="empty-state" style="padding:30px"><span class="empty-icon">📝</span><p>暂无已录入记录</p><p class="empty-hint">填写上方表单后提交</p></div>` :
@@ -889,8 +889,8 @@ function renderRecordsSection(area) {
         <span class="record-date">${r.date||''}</span>
         <span class="record-summary">${(r.desc||r.highlights||'').slice(0,40)}${(r.desc||r.highlights||'').length>40?'...':''}</span>
         <span class="record-actions">
-          <button class="btn-icon" onclick="editRecord('${r._type}',${r.id})" title="编辑">✏️</button>
-          <button class="btn-icon" onclick="deleteRecord('${r._type}',${r.id})" title="删除">🗑️</button>
+          <button class="btn-icon" onclick="editRecord('${r._type}',${r.id})" title="编辑">编辑</button>
+          <button class="btn-icon" onclick="deleteRecord('${r._type}',${r.id})" title="删除">删除</button>
         </span>
       </div>`;
     }).join('')}</div>`}
@@ -900,10 +900,10 @@ function renderRecordsSection(area) {
 function renderActionsSection(area) {
   area.innerHTML = `
     <div class="collect-actions-row">
-      <button class="btn-secondary" onclick="exportJSON()">📥 导出JSON</button>
-      <button class="btn-secondary" onclick="exportCSV()">📊 导出CSV</button>
-      <label class="btn-secondary" style="cursor:pointer">📤 导入数据<input type="file" accept=".json" onchange="importData(this.files[0])" style="display:none" /></label>
-      <button class="btn-danger" onclick="clearAllData()">🗑️ 清空所有</button>
+      <button class="btn-secondary" onclick="exportJSON()">导出JSON</button>
+      <button class="btn-secondary" onclick="exportCSV()">导出CSV</button>
+      <label class="btn-secondary" style="cursor:pointer">导入数据<input type="file" accept=".json" onchange="importData(this.files[0])" style="display:none" /></label>
+      <button class="btn-danger" onclick="clearAllData()">删除 清空所有</button>
     </div>
   `;
 }
@@ -940,10 +940,10 @@ function submitOTA() {
   if (editId) {
     const idx = customVersions.findIndex(r => r.id === parseInt(editId));
     if (idx >= 0) customVersions[idx] = record;
-    showToast('✅ OTA记录已更新');
+    showToast('✓ OTA记录已更新');
   } else {
     customVersions.push(record);
-    showToast('✅ OTA记录已添加');
+    showToast('✓ OTA记录已添加');
   }
   saveData('zhijia_custom_versions', customVersions);
   resetForm('ota');
@@ -981,10 +981,10 @@ function submitTest() {
   if (editId) {
     const idx = customTests.findIndex(r => r.id === parseInt(editId));
     if (idx >= 0) customTests[idx] = record;
-    showToast('✅ 实测记录已更新');
+    showToast('✓ 实测记录已更新');
   } else {
     customTests.push(record);
-    showToast('✅ 实测记录已添加');
+    showToast('✓ 实测记录已添加');
   }
   saveData('zhijia_custom_tests', customTests);
   resetForm('test');
@@ -1011,10 +1011,10 @@ function submitIssue() {
   if (editId) {
     const idx = customIssues.findIndex(r => r.id === parseInt(editId));
     if (idx >= 0) customIssues[idx] = record;
-    showToast('✅ 问题记录已更新');
+    showToast('✓ 问题记录已更新');
   } else {
     customIssues.push(record);
-    showToast('✅ 问题记录已添加');
+    showToast('✓ 问题记录已添加');
   }
   saveData('zhijia_custom_issues', customIssues);
   resetForm('issue');
@@ -1135,7 +1135,7 @@ function importData(file) {
       if (data.customVersions?.length) { customVersions.push(...data.customVersions); saveData('zhijia_custom_versions', customVersions); count += data.customVersions.length; }
       if (data.customTests?.length) { customTests.push(...data.customTests); saveData('zhijia_custom_tests', customTests); count += data.customTests.length; }
       if (data.customIssues?.length) { customIssues.push(...data.customIssues); saveData('zhijia_custom_issues', customIssues); count += data.customIssues.length; }
-      showToast(`✅ 已导入 ${count} 条记录`);
+      showToast(`✓ 已导入 ${count} 条记录`);
       renderCollectPage();
     } catch { showToast('导入失败：文件格式不正确', 'error'); }
   };
@@ -1157,12 +1157,12 @@ function renderFavorites() {
   const container = document.getElementById('favorites-list');
   if (!container) return;
   if (favorites.length === 0) {
-    container.innerHTML = `<div class="empty-state"><span class="empty-icon">⭐</span><p>暂无收藏内容</p><p class="empty-hint">浏览动态时点击 ☆ 按钮添加收藏</p></div>`;
+    container.innerHTML = `<div class="empty-state"><span class="empty-icon"></span><p>暂无收藏内容</p><p class="empty-hint">浏览动态时点击 ☆ 按钮添加收藏</p></div>`;
     return;
   }
   const favNews = NEWS_DATA.filter(n => favorites.includes(n.id));
   if (favNews.length === 0) {
-    container.innerHTML = `<div class="empty-state"><span class="empty-icon">⭐</span><p>收藏的内容已被清理</p></div>`;
+    container.innerHTML = `<div class="empty-state"><span class="empty-icon"></span><p>收藏的内容已被清理</p></div>`;
     return;
   }
   container.innerHTML = favNews.map(news => `
