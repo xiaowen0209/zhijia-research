@@ -402,6 +402,25 @@ body {
 .glossary-full { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
 .glossary-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
 
+.glossary-cats { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+.gcat {
+  padding: 4px 12px; border-radius: 20px; border: 1px solid var(--border-color);
+  background: transparent; color: var(--text-secondary); font-size: 12px;
+  cursor: pointer; transition: all 0.2s; white-space: nowrap;
+}
+.gcat:hover { border-color: var(--border-active); color: var(--text-primary); }
+.gcat.active { background: rgba(74,144,217,0.12); border-color: var(--accent-blue); color: var(--accent-blue); }
+.gcat-n { font-size: 10px; opacity: 0.6; margin-left: 2px; }
+
+.glossary-cat-tag {
+  display: inline-block; padding: 1px 6px; border-radius: 3px;
+  background: rgba(74,144,217,0.1); color: var(--accent-blue);
+  font-size: 10px; margin-right: 6px; vertical-align: middle; font-weight: 500;
+}
+
+/* Chart.js dark theme tweaks */
+.chart-card canvas { max-height: 300px !important; }
+
 /* ===== 法规标准 ===== */
 .regulation-list { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
 .regulation-card {
