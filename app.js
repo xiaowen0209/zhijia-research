@@ -497,7 +497,7 @@ function switchRecordTab(tab) {
 let scrapeMode = 'manual'; // manual | scrape | import
 let scrapeResults = [];
 let scrapeTask = null;
-let apiEndpoint = ''; // Will be set after deployment
+let apiEndpoint = 'https://YOUR-VERCEL-APP.vercel.app/api/scrape'; // 部署后替换为你的 Vercel 域名
 
 function switchCollectMode(mode) {
   scrapeMode = mode;
