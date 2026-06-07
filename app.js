@@ -540,234 +540,16 @@ function switchRecordTab(tab) {
 }
 
 // ===== 网页抓取功能 =====
-let scrapeMode = 'manual'; // manual | scrape | import
-let scrapeResults = [];
-let scrapeTask = null;
-let apiEndpoint = 'http://localhost:3456/api/scrape';
+let scrapeMode = 'manual';
 
 function switchCollectMode(mode) {
   scrapeMode = mode;
   document.querySelectorAll('.collect-tab-main').forEach(t => t.classList.remove('active'));
   event?.target?.classList.add('active');
-
   document.getElementById('collect-manual').classList.toggle('active', mode === 'manual');
-  document.getElementById('collect-scrape').classList.toggle('active', mode === 'scrape');
   document.getElementById('collect-import').classList.toggle('active', mode === 'import');
-
   if (mode === 'manual') recordTab = 'ota';
 }
-
-// 启动抓取 - 纯前端实现
-async function startScrape() {
-  const keyword = document.getElementById('scrape-keyword')?.value?.trim();
-  if (!keyword) { showToast('请输入搜索关键词', 'error'); return; }
-
-  const types = [];
-  if (document.getElementById('type-ota')?.checked) types.push('ota');
-  if (document.getElementById('type-test')?.checked) types.push('test');
-  if (document.getElementById('type-news')?.checked) types.push('news');
-  if (document.getElementById('type-issue')?.checked) types.push('issue');
-  if (types.length === 0) types.push('ota', 'test');
-
-  const limit = parseInt(document.getElementById('scrape-limit')?.value) || 10;
-
-  document.getElementById('btn-scrape').disabled = true;
-  document.getElementById('scrape-status').innerHTML = '<span class="scrape-status-loading">搜索中...</span>';
-  document.getElementById('scrape-results').innerHTML = '<div class="scrape-loading">正在搜索相关内容，请稍候...</div>';
-
-  try {
-    const results = await frontendScrape(keyword, types, limit);
-    scrapeResults = results;
-    renderScrapeResults();
-    const statusEl = document.getElementById('scrape-status');
-    statusEl.innerHTML = results.length > 0 ? `找到 ${results.length} 条结果` : '未找到结果';
-    showToast(`抓取完成，共 ${results.length} 条结果`, results.length > 0 ? 'success' : 'info');
-  } catch (error) {
-    document.getElementById('scrape-results').innerHTML = `<div class="scrape-error">抓取失败: ${error.message}<br><small>提示：请尝试「导入数据→文本粘贴」方式手动输入内容</small></div>`;
-    showToast('抓取失败: ' + error.message, 'error');
-  } finally {
-    document.getElementById('btn-scrape').disabled = false;
-  }
-}
-
-async function frontendScrape(keyword, types, limit) {
-  const response = await fetch(apiEndpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ keyword, types, limit })
-  });
-  if (!response.ok) throw new Error(`服务器返回 ${response.status}`);
-  const data = await response.json();
-  if (!data.success) throw new Error(data.error || '未知错误');
-  return data.results || [];
-}
-
-function cleanDdgUrl(url) {
-  if (!url) return '';
-  const m = url.match(/uddg=(https?%3A[^&]+)/);
-  if (m) return decodeURIComponent(m[1]);
-  if (url.startsWith('//')) return 'https:' + url;
-  if (url.startsWith('http')) return url;
-  return '';
-}
-
-function guessSource(url) {
-  const m = { '36kr.com':'36氪','dongchedi.com':'懂车帝','autohome.com.cn':'汽车之家',
-    'bilibili.com':'B站','zhihu.com':'知乎','weibo.com':'微博','d1ev.com':'第一电动',
-    'jiemian.com':'界面','163.com':'网易','qq.com':'腾讯','gasgoo.com':'盖世汽车' };
-  for (const [k,v] of Object.entries(m)) { if (url.includes(k)) return v; }
-  return '网页';
-}
-
-function guessType(text, types) {
-  const s = text.toLowerCase();
-  if (types.includes('ota') && /[Oo][Tt][Aa]|版本|推送|升级/.test(s)) return 'ota';
-  if (types.includes('test') && /实测|测评|试驾|体验/.test(s)) return 'test';
-  if (types.includes('issue') && /问题|故障|投诉|召回/.test(s)) return 'issue';
-  return 'news';
-}
-
-function extractDateFromTitle(text) {
-  const m = text.match(/(\\d{4}[-/年]\\d{1,2}[-/月]\\d{1,2})/);
-  return m ? m[1].replace(/[年/]/g,'-').replace(/月/,'-').replace(/日/,'') : '';
-}
-
-function findBrand(text) {
-  const map = { 'H':'华为|ADS|问界|鸿蒙','X':'小鹏|XNGP|G9|P7','T':'特斯拉|FSD|Model',
-    'L':'理想|AD Max|L7|L6|MEGA','Mi':'小米|SU7|Pilot','HX':'地平线|HSD|征程|J6P',
-    'BYD':'比亚迪|BYD|天神之眼' };
-  for (const [k,v] of Object.entries(map)) { if (new RegExp(v).test(text)) return k; }
-  return null;
-}
-
-function renderScrapeResults() {
-  const container = document.getElementById('scrape-results');
-  if (!container) return;
-
-  if (scrapeResults.length === 0) {
-    container.innerHTML = `<div class="empty-state" style="padding:30px"><span class="empty-icon">📭</span><p>没有找到相关内容</p><p class="empty-hint">尝试调整搜索关键词</p></div>`;
-    return;
-  }
-
-  container.innerHTML = scrapeResults.map((r, i) => `
-    <div class="scrape-result-item" data-id="${r.id}">
-      <div class="scrape-result-header">
-        <span class="scrape-type">${getSourceIcon(r.source)} ${getDataTypeLabel(r.type)}</span>
-        <span class="scrape-date">${r.date || '未知'}</span>
-        <span class="scrape-source">${r.source || '未知'}</span>
-      </div>
-      <div class="scrape-result-title">${r.title || '无标题'}</div>
-      <div class="scrape-result-content">${(r.content || '').slice(0, 150)}...</div>
-      <div class="scrape-result-url">
-        <a href="${r.url || '#'}" target="_blank" rel="noopener noreferrer">${r.url || '未知URL'}</a>
-      </div>
-      <div class="scrape-result-actions">
-        <button class="btn-sm btn-secondary" onclick="viewScrapeDetail('${r.id}')">查看详情</button>
-        ${r.parsed ? `<button class="btn-sm btn-primary" onclick="importScrapeResult('${r.id}')">导入</button>` : ''}
-      </div>
-    </div>
-  `).join('');
-}
-
-function getSourceIcon(source) {
-  if (source === '36氪') return '📰';
-  if (source === '短视频') return '📱';
-  if (source === '品牌官网' || source === '论坛') return '🌐';
-  if (source === 'unknown') return '📄';
-  return '📄';
-}
-
-function getDataTypeLabel(type) {
-  const map = { ota: 'OTA', test: '实测', news: '新闻', issue: '问题', unknown: '其他' };
-  return map[type] || '其他';
-}
-
-function viewScrapeDetail(id) {
-  const r = scrapeResults.find(x => x.id === id);
-  if (!r) return;
-  // Show full content in modal or expand
-  const item = document.querySelector(`.scrape-result-item[data-id="${id}"]`);
-  const contentEl = item.querySelector('.scrape-result-content');
-  contentEl.textContent = r.content || '暂无内容';
-  contentEl.style.maxHeight = 'none';
-  const btn = item.querySelector('.scrape-result-actions button.btn-secondary');
-  if (btn) btn.textContent = '收起';
-}
-
-function clearScrapeResults() {
-  scrapeResults = [];
-  renderScrapeResults();
-  showToast('已清空抓取结果');
-}
-
-function importScrapeResult(id) {
-  const r = scrapeResults.find(x => x.id === id);
-  if (!r || !r.parsed) return;
-
-  const typeMap = { ota: 'ota', test: 'test', news: 'news', issue: 'issue' };
-  const targetArr = typeMap[r.type];
-
-  if (targetArr === 'ota') {
-    const newRec = {
-      id: Date.now(),
-      brand: r.parsed.brand || 'H',
-      name: r.parsed.brand || '未知品牌',
-      version: r.parsed.version || '',
-      date: r.date || new Date().toISOString().slice(0,10),
-      chip: '',
-      arch: '',
-      features: r.parsed.features || [],
-      scope: '灰度',
-      riskLevel: '低',
-      desc: r.title + '\n' + r.content
-    };
-    customVersions.push(newRec);
-    saveData('zhijia_custom_versions', customVersions);
-  } else if (targetArr === 'test') {
-    const newRec = {
-      id: Date.now(),
-      brand: r.parsed.brand || 'H',
-      name: r.parsed.brand || '未知品牌',
-      version: r.parsed.version || '',
-      title: r.title,
-      date: r.date || new Date().toISOString().slice(0,10),
-      location: '',
-      vehicle: '',
-      weather: '',
-      mileage: '',
-      score: { city: 0, highway: 0, parking: 0 },
-      scenes: [],
-      highlights: r.content,
-      desc: ''
-    };
-    customTests.push(newRec);
-    saveData('zhijia_custom_tests', customTests);
-  } else if (targetArr === 'issue') {
-    const newRec = {
-      id: Date.now(),
-      brand: r.parsed.brand || 'H',
-      name: r.parsed.brand || '未知品牌',
-      version: r.parsed.version || '',
-      date: r.date || new Date().toISOString().slice(0,10),
-      level: 'P2',
-      category: '其他',
-      desc: r.title + '\n' + r.content,
-      steps: '',
-      frequency: '偶发'
-    };
-    customIssues.push(newRec);
-    saveData('zhijia_custom_issues', customIssues);
-  }
-
-  showToast('已导入到数据采集', 'success');
-  removeScrapeResult(id);
-}
-
-function removeScrapeResult(id) {
-  scrapeResults = scrapeResults.filter(r => r.id !== id);
-  renderScrapeResults();
-}
-
 // ===== 导入/解析功能 =====
 function toggleImportUI() {
   const type = document.getElementById('import-type')?.value;
@@ -804,7 +586,7 @@ function parseImportedText() {
 
   container.innerHTML = `<div class="records-list">${parsed.map((r, i) => `
     <div class="record-item">
-      <span class="record-type">${getSourceIcon(r.source)} ${r.type || '其它'}</span>
+      <span class="record-type">${r.source||'网页'} ${r.type || '其它'}</span>
       <span class="record-info">${r.brand || '未知'} · ${r.version || ''}</span>
       <span class="record-date">${r.date || ''}</span>
       <span class="record-summary">${(r.title || '').slice(0,40)}${(r.title || '').length>40?'...':''}</span>
