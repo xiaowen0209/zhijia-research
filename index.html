@@ -213,19 +213,107 @@
       <!-- ===== 数据采集 ===== -->
       <div class="page" id="page-collect">
         <h1 class="page-title">数据采集</h1>
-        <p class="page-subtitle">手动录入OTA更新、实测数据、问题追踪 · 数据持久化保存</p>
-        <div class="collect-layout">
-          <div class="collect-form-col">
-            <div class="tool-card tool-card-form">
-              <div id="collect-form-area"></div>
+        <p class="page-subtitle">手动录入 OTA 更新、实测数据、问题追踪 · 网页抓取智能采集 · 数据持久化保存</p>
+        <div class="collect-tabs-main">
+          <button class="collect-tab-main active" onclick="switchCollectMode('manual')">📝 手动录入</button>
+          <button class="collect-tab-main" onclick="switchCollectMode('scrape')">🌐 网页抓取</button>
+          <button class="collect-tab-main" onclick="switchCollectMode('import')">📥 导入数据</button>
+        </div>
+
+        <!-- 手动录入模式 -->
+        <div id="collect-manual" class="collect-content active">
+          <div class="collect-layout">
+            <div class="collect-form-col">
+              <div class="tool-card tool-card-form"><div id="collect-form-area"></div></div>
+            </div>
+            <div class="collect-records-col">
+              <div class="tool-card"><div id="collect-records-area"></div></div>
+              <div class="tool-card"><div id="collect-actions-area"></div></div>
             </div>
           </div>
-          <div class="collect-records-col">
-            <div class="tool-card">
-              <div id="collect-records-area"></div>
+        </div>
+
+        <!-- 网页抓取模式 -->
+        <div id="collect-scrape" class="collect-content">
+          <div class="scrape-layout">
+            <div class="scrape-config-col">
+              <div class="tool-card">
+                <h3>🌐 搜索配置</h3>
+                <div class="form-row">
+                  <label>关键词 *</label>
+                  <input type="text" id="scrape-keyword" placeholder="如：华为ADS OTA 智能驾驶" />
+                </div>
+                <div class="form-row">
+                  <label>数据来源</label>
+                  <div class="checkbox-group">
+                    <label class="checkbox-item"><input type="checkbox" id="src-news" checked> 新闻网站</label>
+                    <label class="checkbox-item"><input type="checkbox" id="src-video" checked> 短视频平台</label>
+                    <label class="checkbox-item"><input type="checkbox" id="src-forum"> 品牌官网/论坛</label>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <label>数据类型</label>
+                  <div class="checkbox-group">
+                    <label class="checkbox-item"><input type="checkbox" id="type-ota" checked> OTA 更新</label>
+                    <label class="checkbox-item"><input type="checkbox" id="type-test"> 测评/实测</label>
+                    <label class="checkbox-item"><input type="checkbox" id="type-news"> 新闻动态</label>
+                    <label class="checkbox-item"><input type="checkbox" id="type-issue"> 用户反馈</label>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <label>抓取数量</label>
+                  <input type="number" id="scrape-limit" value="10" min="1" max="50" />
+                </div>
+                <div class="form-actions">
+                  <button class="btn-primary" onclick="startScrape()" id="btn-scrape">🚀 开始抓取</button>
+                  <button class="btn-secondary" onclick="clearScrapeResults()">清空结果</button>
+                </div>
+              </div>
             </div>
-            <div class="tool-card">
-              <div id="collect-actions-area"></div>
+            <div class="scrape-results-col">
+              <div class="tool-card">
+                <div class="scrape-header">
+                  <h3>📊 抓取结果</h3>
+                  <span id="scrape-status" class="scrape-status"></span>
+                </div>
+                <div id="scrape-results" class="scrape-results-list"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 导入数据模式 -->
+        <div id="collect-import" class="collect-content">
+          <div class="collect-layout">
+            <div class="collect-form-col">
+              <div class="tool-card">
+                <h3>📥 数据导入</h3>
+                <p class="import-hint">支持导入 JSON/CSV 文件或将文本粘贴后解析</p>
+                <div class="form-row">
+                  <label>导入方式</label>
+                  <select id="import-type" onchange="toggleImportUI()">
+                    <option value="json">JSON 文件</option>
+                    <option value="csv">CSV 文件</option>
+                    <option value="text">文本粘贴</option>
+                  </select>
+                </div>
+                <div id="import-file-area">
+                  <label for="import-file" class="btn-secondary">选择文件</label>
+                  <input type="file" id="import-file" accept=".json,.csv,.txt" onchange="handleImportFile(this.files[0])" />
+                  <span id="import-file-name"></span>
+                </div>
+                <div id="import-text-area" style="display:none">
+                  <label>粘贴网页内容</label>
+                  <textarea id="import-text" rows="10" placeholder="粘贴网页内容或文章，系统将自动提取结构化数据..."></textarea>
+                  <button class="btn-primary" onclick="parseImportedText()">解析文本</button>
+                </div>
+              </div>
+            </div>
+            <div class="collect-records-col">
+              <div class="tool-card">
+                <h3>解析结果</h3>
+                <div id="import-results" class="records-list"></div>
+              </div>
             </div>
           </div>
         </div>
