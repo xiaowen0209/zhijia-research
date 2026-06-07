@@ -310,7 +310,7 @@ const GLOSSARY_DATA = [
   { term: "传感器融合", full: "Sensor Fusion", desc: "将多种传感器（摄像头、雷达、LiDAR等）数据整合利用的技术。分为前融合（原始数据融合）和后融合（目标级融合），是提升感知系统能力的关键技术。" },
   { term: "VLA", full: "Vision-Language-Action", desc: "视觉-语言-动作模型，将视觉感知与语言理解融合，直接输出驾驶动作的端到端架构。代表应用：理想AD Max V13、小鹏XNGP VLA 2.0。" },
   { term: "VLM", full: "Vision-Language Model", desc: "视觉语言大模型，融合视觉感知与自然语言理解的多模态大模型，可理解复杂交通场景语义，提升自动驾驶的常识推理能力。" },
-  { term: "SR", full: "Situation Recognition", desc: "态势感知。将摄像头、雷达等传感器采集的信息可视化渲染显示，让用户直观了解系统"看到了"什么，增强对系统的信任感。" },
+  { term: "SR", full: "Situation Recognition", desc: "态势感知。将摄像头、雷达等传感器采集的信息可视化渲染显示，让用户直观了解系统「看到了」什么，增强对系统的信任感。" },
 
   // 定位系统
   { term: "GNSS", full: "Global Navigation Satellite System", desc: "全球导航卫星系统，通过接收多颗卫星信号计算接收器位置。包括美国GPS、中国北斗、欧洲伽利略、俄罗斯格洛纳斯。是自动驾驶的基础定位手段。" },
@@ -341,7 +341,7 @@ const GLOSSARY_DATA = [
   // 系统架构
   { term: "ROS", full: "Robot Operating System", desc: "机器人操作系统，自动驾驶研发的核心框架。提供节点、话题、服务、动作等分布式通信机制，配套RViz可视化、Gazebo仿真等丰富工具生态。" },
   { term: "MCAP", full: "MCAP (Message Container Archive Format)", desc: "消息容器存档格式，道路测试数据常用存储格式。支持图像、点云、雷达等多消息类型的高效存储和回放，是自动驾驶数据采集的标准格式。" },
-  { term: "OTA", full: "Over-The-Air", desc: "远程升级技术，通过无线网络远程更新车辆软件。是智能汽车"常用常新"的关键能力，可持续优化自动驾驶算法、修复问题、增加新功能。" },
+  { term: "OTA", full: "Over-The-Air", desc: "远程升级技术，通过无线网络远程更新车辆软件。是智能汽车「常用常新」的关键能力，可持续优化自动驾驶算法、修复问题、增加新功能。" },
 
   // 测试验证
   { term: "数据闭环", full: "Data Closed Loop", desc: "自动驾驶算法迭代的核心方法论：道路数据采集→云端标注处理→算法训练优化→车端验证→OTA推送→新数据采集的循环。决定系统持续进化能力。" },
@@ -353,7 +353,7 @@ const GLOSSARY_DATA = [
   // 常见问题
   { term: "幽灵刹车", full: "Phantom Braking", desc: "系统错误识别障碍物或危险目标导致的不必要紧急制动。是自动驾驶最常见的感知误检问题之一，严重影响驾乘体验和安全性。" },
   { term: "NOA/NOP", full: "Navigate on Autopilot / Pilot", desc: "导航辅助驾驶，在高精地图覆盖区域，按导航路线自动完成变道、超车、进出匝道等操作。各品牌名称不同：特斯拉NOA、蔚来NOP、小鹏NGP、理想NOA。" },
-  { term: "HMI", full: "Human-Machine Interface", desc: "人机交互界面。自动驾驶系统与驾驶员之间的"翻译官"，通过仪表盘、中控屏、HUD抬头显示、语音等多种方式传递系统状态和接管请求。" },
+  { term: "HMI", full: "Human-Machine Interface", desc: "人机交互界面。自动驾驶系统与驾驶员之间的「翻译官」，通过仪表盘、中控屏、HUD抬头显示、语音等多种方式传递系统状态和接管请求。" },
   { term: "HUD", full: "Head-Up Display", desc: "抬头显示，将关键驾驶信息投射到前挡风玻璃上，减少驾驶员视线离开道路的时间。AR-HUD可叠加导航箭头、ADAS预警等增强现实信息。" },
   { term: "ODD", full: "Operational Design Domain", desc: "设计运行域。自动驾驶系统设计的运行条件范围，包括道路类型、地理范围、速度范围、天气条件、光照条件等。超出ODD时系统需请求接管或安全停车。" },
   { term: "RL", full: "Reinforcement Learning", desc: "强化学习。通过与环境交互学习最优策略，可用于行为决策和轨迹规划。自动驾驶中通常结合安全约束使用，如RLHF（人类反馈强化学习）用于对齐驾驶偏好。" },
