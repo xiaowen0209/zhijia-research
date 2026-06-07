@@ -543,7 +543,7 @@ function switchRecordTab(tab) {
 let scrapeMode = 'manual'; // manual | scrape | import
 let scrapeResults = [];
 let scrapeTask = null;
-let apiEndpoint = ''; // 纯前端抓取，无需后端
+let apiEndpoint = 'http://localhost:3456/api/scrape';
 
 function switchCollectMode(mode) {
   scrapeMode = mode;
@@ -591,85 +591,15 @@ async function startScrape() {
 }
 
 async function frontendScrape(keyword, types, limit) {
-  const query = keyword + ' 智能驾驶 ' + types.join(' ');
-  const results = [];
-  const corsProxy = 'https://corsproxy.io/?';
-
-  // Bing search (accessible in China)
-  const bingUrl = `https://www.bing.com/search?q=${encodeURIComponent(query)}&count=${limit}`;
-  let searchHtml = '';
-
-  // Try via CORS proxy first
-  try {
-    const resp = await fetch(corsProxy + encodeURIComponent(bingUrl));
-    if (resp.ok) searchHtml = await resp.text();
-  } catch(e) {}
-
-  // Fallback: try direct (may hit CORS but worth trying)
-  if (!searchHtml) {
-    try {
-      const resp = await fetch(bingUrl);
-      if (resp.ok) searchHtml = await resp.text();
-    } catch(e) {}
-  }
-
-  if (!searchHtml) {
-    throw new Error('搜索请求被拦截，请尝试「导入数据→文本粘贴」方式');
-  }
-
-  // Parse Bing results
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(searchHtml, 'text/html');
-  const links = [];
-  const seen = new Set();
-
-  // Bing search result selectors
-  doc.querySelectorAll('li.b_algo h2 a, .b_title a, #b_results h2 a').forEach(a => {
-    const url = a.href;
-    const title = a.textContent.trim();
-    if (url && title && url.startsWith('http') && !seen.has(url) && !url.includes('bing.com') && !url.includes('microsoft.com')) {
-      seen.add(url);
-      links.push({ url, title });
-    }
+  const response = await fetch(apiEndpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ keyword, types, limit })
   });
-
-  // Also try to get snippet text
-  doc.querySelectorAll('li.b_algo .b_caption p, .b_algo .b_lineclamp2').forEach((p, i) => {
-    if (links[i] && !links[i].snippet) {
-      links[i].snippet = p.textContent.trim().slice(0, 300);
-    }
-  });
-
-  if (links.length === 0) {
-    // No results from Bing - suggest manual import
-    results.push({
-      id: Date.now().toString(36),
-      source: '提示',
-      type: 'info',
-      title: `未找到与「${keyword}」相关的搜索结果`,
-      content: '搜索请求可能被网络限制。建议使用「导入数据→文本粘贴」功能：复制36氪/懂车帝/汽车之家等网站的文章内容，粘贴后自动解析。',
-      date: new Date().toISOString().slice(0,10),
-      url: '',
-      parsed: null
-    });
-    return results;
-  }
-
-  // Build results from search snippets (no need to fetch each page)
-  links.slice(0, limit).forEach(link => {
-    results.push({
-      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-      source: guessSource(link.url),
-      type: guessType(link.title + ' ' + (link.snippet||''), types),
-      title: link.title,
-      content: link.snippet || link.title,
-      date: extractDateFromTitle(link.title + ' ' + (link.snippet||'')),
-      url: link.url,
-      parsed: { brand: findBrand(link.title + ' ' + (link.snippet||'')) }
-    });
-  });
-
-  return results;
+  if (!response.ok) throw new Error(`服务器返回 ${response.status}`);
+  const data = await response.json();
+  if (!data.success) throw new Error(data.error || '未知错误');
+  return data.results || [];
 }
 
 function cleanDdgUrl(url) {
