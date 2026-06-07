@@ -107,12 +107,34 @@ function initMobileMenu() {
 
 // ===== 首页渲染 =====
 function renderHomePage() {
+  updateHomeStats();
   renderNews('all');
   renderScores();
   renderHomeVersions();
   renderIssues();
   initFilterTabs();
   initSearch();
+}
+
+function updateHomeStats() {
+  const statsGrid = document.getElementById('home-stats');
+  if (!statsGrid) return;
+  const versionCount = VERSION_DATA.length + customVersions.length;
+  const testCount = TEST_DATA.length + customTests.length;
+  const brandSet = new Set([...VERSION_DATA.map(v=>v.brand), ...SCORE_DATA.map(s=>s.brand)]);
+  statsGrid.innerHTML = `
+    <div class="stat-card" onclick="switchPage('compare')">
+      <div class="stat-number">${COMPARE_DATA.rows.length}</div><div class="stat-label">监测方案总数</div>
+    </div>
+    <div class="stat-card" onclick="switchPage('versions')">
+      <div class="stat-number">${versionCount}</div><div class="stat-label">版本记录</div>
+    </div>
+    <div class="stat-card" onclick="switchPage('test')">
+      <div class="stat-number">${testCount}</div><div class="stat-label">实测记录</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number">${brandSet.size}</div><div class="stat-label">活跃品牌数</div>
+    </div>`;
 }
 
 // ===== 新闻列表 =====
@@ -382,18 +404,42 @@ function testScore(l,v,c) {
 }
 
 // ===== 术语百科 =====
+let glossaryCat = 'all';
+
 function renderGlossary() {
   const c = document.getElementById('glossary-list');
   if (!c) return;
-  c.innerHTML = `<div class="glossary-search"><input type="text" id="glossary-search-input" placeholder="搜索术语..." oninput="filterGlossary(this.value)" /></div>
-    <div class="glossary-grid" id="glossary-grid">${GLOSSARY_DATA.map(g=>`
-      <div class="glossary-item" data-term="${g.term.toLowerCase()} ${g.full.toLowerCase()}">
-        <div class="glossary-term">${g.term}</div><div class="glossary-full">${g.full}</div><div class="glossary-desc">${g.desc}</div>
-      </div>`).join('')}</div>`;
+  const cats = [...new Set(GLOSSARY_DATA.map(g => g.cat).filter(Boolean))].sort();
+  const filtered = glossaryCat === 'all' ? GLOSSARY_DATA : GLOSSARY_DATA.filter(g => g.cat === glossaryCat);
+  const catCounts = {};
+  GLOSSARY_DATA.forEach(g => { catCounts[g.cat] = (catCounts[g.cat]||0)+1; });
+
+  c.innerHTML = `
+    <div class="glossary-search"><input type="text" id="glossary-search-input" placeholder="搜索术语..." oninput="filterGlossary(this.value)" /></div>
+    <div class="glossary-cats">
+      <button class="gcat ${glossaryCat==='all'?'active':''}" onclick="switchGlossaryCat('all')">全部 <span class="gcat-n">${GLOSSARY_DATA.length}</span></button>
+      ${cats.map(cat => `<button class="gcat ${glossaryCat===cat?'active':''}" onclick="switchGlossaryCat('${cat}')">${cat} <span class="gcat-n">${catCounts[cat]}</span></button>`).join('')}
+    </div>
+    <div class="glossary-grid" id="glossary-grid">
+      ${filtered.map(g => `
+        <div class="glossary-item" data-term="${g.term.toLowerCase()} ${g.full.toLowerCase()}" data-cat="${g.cat||''}">
+          <div class="glossary-term"><span class="glossary-cat-tag">${g.cat||''}</span>${g.term}</div>
+          <div class="glossary-full">${g.full}</div>
+          <div class="glossary-desc">${g.desc}</div>
+        </div>`).join('')}
+    </div>`;
 }
+
+function switchGlossaryCat(cat) {
+  glossaryCat = cat;
+  renderGlossary();
+}
+
 function filterGlossary(q) {
   const s = q.toLowerCase().trim();
-  document.querySelectorAll('.glossary-item').forEach(i => { i.style.display = !s || i.dataset.term.includes(s) ? '' : 'none'; });
+  document.querySelectorAll('.glossary-item').forEach(i => {
+    i.style.display = !s || i.dataset.term.includes(s) ? '' : 'none';
+  });
 }
 
 // ===== 法规标准 =====
@@ -1186,42 +1232,94 @@ function showToast(message, type='success') {
 }
 
 // ===== 图表 =====
-function renderCharts() { renderRadarChart(); renderBarChart(); renderScoreCompareChart(); }
+let chartInstances = {};
+function renderCharts() {
+  Object.values(chartInstances).forEach(c => c.destroy());
+  chartInstances = {};
+  renderRadarChart();
+  renderBarChart();
+  renderScoreCompareChart();
+}
+
+function getChartColors() {
+  return {
+    bg: 'rgba(26,26,37,0.3)',
+    grid: 'rgba(255,255,255,0.06)',
+    text: '#9898a8',
+    colors: ['#e53935','#ff9800','#1565c0','#7b1fa2','#ff6f00','#2e7d32','#00838f']
+  };
+}
 
 function renderRadarChart() {
   const canvas = document.getElementById('radar-chart');
-  if (!canvas) return;
+  if (!canvas || typeof Chart === 'undefined') return;
   const ctx = canvas.getContext('2d');
-  const dpr = window.devicePixelRatio||1;
-  const rect = canvas.parentElement.getBoundingClientRect();
-  const w = rect.width - 40, h = 320;
-  canvas.width = w*dpr; canvas.height = h*dpr;
-  canvas.style.width = w+'px'; canvas.style.height = h+'px';
-  ctx.scale(dpr, dpr); ctx.clearRect(0,0,w,h);
-  const cx=w/2, cy=h/2, maxR=Math.min(cx,cy)-50;
-  const labels=['城市场景','高速场景','泊车场景','综合体验'];
-  const n=labels.length;
-  for(let level=2;level<=10;level+=2){const r=(level/10)*maxR;ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=1;ctx.beginPath();for(let i=0;i<=n;i++){const a=(Math.PI*2*i)/n-Math.PI/2;const x=cx+r*Math.cos(a);const y=cy+r*Math.sin(a);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}ctx.closePath();ctx.stroke();if(level%2===0){ctx.fillStyle='rgba(255,255,255,0.2)';ctx.font='10px sans-serif';ctx.textAlign='left';ctx.fillText(level,cx+4,cy-r+3);}}
-  for(let i=0;i<n;i++){const a=(Math.PI*2*i)/n-Math.PI/2;ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+maxR*Math.cos(a),cy+maxR*Math.sin(a));ctx.stroke();const lx=cx+(maxR+24)*Math.cos(a);const ly=cy+(maxR+24)*Math.sin(a);ctx.fillStyle='#9898a8';ctx.font='12px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(labels[i],lx,ly);}
-  const top5=SCORE_DATA.slice(0,5);
-  top5.forEach(s=>{const avg=+((s.city+s.highway+s.parking)/3).toFixed(1);const values=[s.city,s.highway,s.parking,avg];ctx.strokeStyle=s.color;ctx.lineWidth=2;ctx.beginPath();for(let i=0;i<=n;i++){const a=(Math.PI*2*(i%n))/n-Math.PI/2;const r=(values[i%n]/10)*maxR;const x=cx+r*Math.cos(a);const y=cy+r*Math.sin(a);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}ctx.closePath();ctx.fillStyle=s.color+'18';ctx.fill();ctx.stroke();for(let i=0;i<n;i++){const a=(Math.PI*2*i)/n-Math.PI/2;const r=(values[i]/10)*maxR;ctx.fillStyle=s.color;ctx.beginPath();ctx.arc(cx+r*Math.cos(a),cy+r*Math.sin(a),3,0,Math.PI*2);ctx.fill();}});
-  ctx.font='11px sans-serif';top5.forEach((s,idx)=>{const x=8,y=14+idx*16;ctx.fillStyle=s.color;ctx.fillRect(x,y-6,10,10);ctx.fillStyle='#9898a8';ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText(s.name,x+14,y);});
+  const cc = getChartColors();
+  chartInstances.radar = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: ['城市场景','高速场景','泊车场景','综合体验'],
+      datasets: SCORE_DATA.slice(0,6).map((s,i) => ({
+        label: s.name,
+        data: [s.city, s.highway, s.parking, +((s.city+s.highway+s.parking)/3).toFixed(1)],
+        borderColor: s.color,
+        backgroundColor: s.color + '18',
+        borderWidth: 2, pointRadius: 3, pointBackgroundColor: s.color
+      }))
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      scales: { r: { min: 6, max: 10, ticks: { stepSize: 1, color: cc.text, backdropColor: 'transparent' }, grid: { color: cc.grid }, pointLabels: { color: cc.text, font: { size: 12 } } } },
+      plugins: { legend: { labels: { color: cc.text, font: { size: 11 }, boxWidth: 12, padding: 12 } } }
+    }
+  });
 }
 
 function renderBarChart() {
-  const canvas=document.getElementById('bar-chart');if(!canvas)return;const ctx=canvas.getContext('2d');const dpr=window.devicePixelRatio||1;const rect=canvas.parentElement.getBoundingClientRect();const w=rect.width-40,h=320;canvas.width=w*dpr;canvas.height=h*dpr;canvas.style.width=w+'px';canvas.style.height=h+'px';ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);
-  const data=[{name:'华为ADS',count:8,color:'#e53935'},{name:'小鹏XNGP',count:6,color:'#ff9800'},{name:'特斯拉FSD',count:5,color:'#1565c0'},{name:'理想AD Max',count:4,color:'#7b1fa2'},{name:'小米智驾',count:3,color:'#ff6f00'},{name:'地平线HSD',count:4,color:'#2e7d32'},{name:'比亚迪',count:2,color:'#00838f'}];
-  const maxVal=Math.max(...data.map(d=>d.count));const barH=26,gap=14,labelW=90,chartW=w-labelW-60,startY=10;
-  for(let i=0;i<=4;i++){const x=labelW+10+(chartW*i/4);ctx.strokeStyle='rgba(255,255,255,0.04)';ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,data.length*(barH+gap)+startY);ctx.stroke();ctx.fillStyle='rgba(255,255,255,0.2)';ctx.font='10px sans-serif';ctx.textAlign='center';ctx.fillText(Math.round(maxVal*i/4)+'次',x,data.length*(barH+gap)+startY+14);}
-  data.forEach((d,i)=>{const y=startY+i*(barH+gap);const barW=(d.count/maxVal)*chartW;ctx.fillStyle='#9898a8';ctx.font='12px sans-serif';ctx.textAlign='right';ctx.textBaseline='middle';ctx.fillText(d.name,labelW,y+barH/2);const g=ctx.createLinearGradient(labelW+10,0,labelW+10+barW,0);g.addColorStop(0,d.color+'dd');g.addColorStop(1,d.color+'66');ctx.fillStyle=g;drawRR(ctx,labelW+10,y,Math.max(barW,2),barH,4);ctx.fill();ctx.fillStyle=d.color;ctx.textAlign='left';ctx.font='12px sans-serif';ctx.fillText(d.count+'次',labelW+14+barW,y+barH/2);});
+  const canvas = document.getElementById('bar-chart');
+  if (!canvas || typeof Chart === 'undefined') return;
+  const ctx = canvas.getContext('2d');
+  const cc = getChartColors();
+  const d = SCORE_DATA;
+  chartInstances.bar = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: d.map(s => s.name),
+      datasets: [{
+        label: 'OTA更新次数', data: [8,6,5,4,3,4,2],
+        backgroundColor: d.map((s,i) => cc.colors[i] + '99'),
+        borderColor: d.map(s => s.color),
+        borderWidth: 1, borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      indexAxis: 'y',
+      scales: { x: { grid: { color: cc.grid }, ticks: { color: cc.text } }, y: { grid: { display: false }, ticks: { color: cc.text } } },
+      plugins: { legend: { display: false } }
+    }
+  });
 }
 
 function renderScoreCompareChart() {
-  const canvas=document.getElementById('score-compare-chart');if(!canvas)return;const ctx=canvas.getContext('2d');const dpr=window.devicePixelRatio||1;const rect=canvas.parentElement.getBoundingClientRect();const w=rect.width-40,h=320;canvas.width=w*dpr;canvas.height=h*dpr;canvas.style.width=w+'px';canvas.style.height=h+'px';ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);
-  const dims=['城市场景','高速场景','泊车场景'];const dimW=w/(dims.length+1);const barW=18;const maxVal=10;
-  dims.forEach((dim,di)=>{const baseX=dimW*(di+0.5);ctx.fillStyle='#9898a8';ctx.font='12px sans-serif';ctx.textAlign='center';ctx.fillText(dim,baseX+(SCORE_DATA.length*barW)/2,h-10);
-  SCORE_DATA.forEach((s,si)=>{const x=baseX+si*(barW+2);const val=di===0?s.city:di===1?s.highway:s.parking;const barH2=(val/maxVal)*(h-60);const y=h-30-barH2;ctx.fillStyle=s.color+'cc';drawRR(ctx,x,y,barW,barH2,3);ctx.fill();ctx.fillStyle=s.color;ctx.font='9px sans-serif';ctx.textAlign='center';ctx.fillText(val,x+barW/2,y-4);});});
-  ctx.font='10px sans-serif';SCORE_DATA.forEach((s,idx)=>{const x=8,y=14+idx*14;ctx.fillStyle=s.color;ctx.fillRect(x,y-5,8,8);ctx.fillStyle='#9898a8';ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText(s.name,x+12,y);});
+  const canvas = document.getElementById('score-compare-chart');
+  if (!canvas || typeof Chart === 'undefined') return;
+  const ctx = canvas.getContext('2d');
+  const cc = getChartColors();
+  chartInstances.compare = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: SCORE_DATA.map(s => s.name),
+      datasets: [
+        { label: '城市场景', data: SCORE_DATA.map(s => s.city), backgroundColor: '#4a90d9aa', borderColor: '#4a90d9', borderWidth: 1, borderRadius: 4 },
+        { label: '高速场景', data: SCORE_DATA.map(s => s.highway), backgroundColor: '#3d9970aa', borderColor: '#3d9970', borderWidth: 1, borderRadius: 4 },
+        { label: '泊车场景', data: SCORE_DATA.map(s => s.parking), backgroundColor: '#ff9800aa', borderColor: '#ff9800', borderWidth: 1, borderRadius: 4 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      scales: { x: { grid: { color: cc.grid }, ticks: { color: cc.text } }, y: { min: 6, max: 10, grid: { color: cc.grid }, ticks: { color: cc.text, stepSize: 0.5 } } },
+      plugins: { legend: { labels: { color: cc.text, font: { size: 11 }, boxWidth: 12 } } }
+    }
+  });
 }
-
-function drawRR(ctx,x,y,w,h,r) { r=Math.min(r,w/2,h/2);ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);ctx.closePath(); }
