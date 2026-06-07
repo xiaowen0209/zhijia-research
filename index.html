@@ -4,60 +4,78 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>智驾研究台</title>
-  <meta name="description" content="个人自用智能驾驶研究专用平台 - 方案对比·版本追踪·实测测评" />
+  <meta name="description" content="智能驾驶研究平台 — 方案对比 · 版本追踪 · 实测测评 · 术语百科" />
   <link rel="icon" href="favicon.ico" sizes="256x256" type="image/x-icon" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+
+  <!-- SVG Icon Library -->
+  <svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="ic-car" viewBox="0 0 24 24"><path d="M5 11l1.5-4h11L19 11M6 15h1m10 0h1m-9 0a1 1 0 100-2 1 1 0 000 2m8 0a1 1 0 100-2 1 1 0 000 2M7 11h10l-1-3H8L7 11z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></symbol>
+    <symbol id="ic-home" viewBox="0 0 24 24"><path d="M3 12l9-9 9 9M5 10v10h5v-6h4v6h5V10" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-compare" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/><rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/><rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/><rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/></symbol>
+    <symbol id="ic-matrix" viewBox="0 0 24 24"><circle cx="6" cy="4" r="1.5" fill="currentColor"/><circle cx="12" cy="4" r="1.5" fill="currentColor"/><circle cx="18" cy="4" r="1.5" fill="currentColor"/><circle cx="6" cy="10" r="1.5" fill="currentColor"/><circle cx="12" cy="10" r="1.5" fill="currentColor"/><circle cx="18" cy="10" r="1.5" fill="currentColor"/><circle cx="6" cy="16" r="1.5" fill="currentColor"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/><circle cx="18" cy="16" r="1.5" fill="currentColor"/></symbol>
+    <symbol id="ic-versions" viewBox="0 0 24 24"><path d="M12 3l8 5v8l-8 5-8-5V8l8-5z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linejoin="round"/><path d="M12 8v5l3 2" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></symbol>
+    <symbol id="ic-ota" viewBox="0 0 24 24"><path d="M12 3v4m0 10v4M4 12l8-8 8 8M5 16a7 7 0 0014 0" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/></symbol>
+    <symbol id="ic-test" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-chart" viewBox="0 0 24 24"><rect x="3" y="16" width="4" height="4" rx="0.5" fill="currentColor" opacity="0.4"/><rect x="10" y="10" width="4" height="10" rx="0.5" fill="currentColor" opacity="0.6"/><rect x="17" y="6" width="4" height="14" rx="0.5" fill="currentColor"/></symbol>
+    <symbol id="ic-book" viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 4l8 8 8-8M8 4v16" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-shield" viewBox="0 0 24 24"><path d="M12 2l8 4v6c0 5-3.5 9-8 10C7.5 21 4 17 4 12V6l8-4z" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-download" viewBox="0 0 24 24"><path d="M12 3v14m0 0l-4-4m4 4l4-4M4 17v3h16v-3" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-star" viewBox="0 0 24 24"><path d="M12 2l2.5 7h7.5l-6 4.5 2.5 7.5-6.5-5-6.5 5 2.5-7.5-6-4.5h7.5L12 2z" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linejoin="round"/></symbol>
+    <symbol id="ic-search" viewBox="0 0 24 24"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M15 15l6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+    <symbol id="ic-menu" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></symbol>
+  </svg>
+
   <!-- 顶部导航栏 -->
   <header class="navbar">
     <div class="navbar-brand">
-      <span class="brand-icon">🚗</span>
+      <svg class="brand-icon" width="22" height="22"><use href="#ic-car"/></svg>
       <span class="brand-text">智驾研究台</span>
     </div>
     <div class="navbar-actions">
-      <div class="search-box global-search">
-        <span class="search-icon">🔍</span>
+      <div class="search-box">
+        <svg width="15" height="15" class="search-icon-svg"><use href="#ic-search"/></svg>
         <input type="text" id="global-search" placeholder="搜索动态..." />
       </div>
-      <span class="nav-badge">研</span>
-      <!-- 移动端汉堡菜单 -->
-      <button class="mobile-menu-btn" id="mobile-menu-btn">☰</button>
+      <button class="mobile-menu-btn" id="mobile-menu-btn">
+        <svg width="22" height="22"><use href="#ic-menu"/></svg>
+      </button>
     </div>
   </header>
 
-  <!-- 移动端侧边栏 -->
+  <!-- 移动端菜单 -->
   <div class="menu-overlay"></div>
   <nav class="mobile-menu" id="mobile-menu">
-    <a href="#" class="mobile-nav-item active" data-page="home">🏠 首页动态</a>
-    <a href="#" class="mobile-nav-item" data-page="compare">📊 方案对比</a>
-    <a href="#" class="mobile-nav-item" data-page="matrix">🧩 功能矩阵</a>
-    <a href="#" class="mobile-nav-item" data-page="versions">📦 版本中心</a>
-    <a href="#" class="mobile-nav-item" data-page="ota">🔄 OTA追踪</a>
-    <a href="#" class="mobile-nav-item" data-page="test">🧪 实测测评</a>
-    <a href="#" class="mobile-nav-item" data-page="dataviz">📈 数据可视化</a>
-    <a href="#" class="mobile-nav-item" data-page="glossary">📖 术语百科</a>
-    <a href="#" class="mobile-nav-item" data-page="regulation">⚖️ 法规标准</a>
-    <a href="#" class="mobile-nav-item" data-page="collect">💾 数据采集</a>
-    <a href="#" class="mobile-nav-item" data-page="favorites">⭐ 我的收藏</a>
+    <a href="#" class="mobile-nav-item active" data-page="home"><svg width="18" height="18"><use href="#ic-home"/></svg>首页动态</a>
+    <a href="#" class="mobile-nav-item" data-page="compare"><svg width="18" height="18"><use href="#ic-compare"/></svg>方案对比</a>
+    <a href="#" class="mobile-nav-item" data-page="matrix"><svg width="18" height="18"><use href="#ic-matrix"/></svg>功能矩阵</a>
+    <a href="#" class="mobile-nav-item" data-page="versions"><svg width="18" height="18"><use href="#ic-versions"/></svg>版本中心</a>
+    <a href="#" class="mobile-nav-item" data-page="ota"><svg width="18" height="18"><use href="#ic-ota"/></svg>OTA追踪</a>
+    <a href="#" class="mobile-nav-item" data-page="test"><svg width="18" height="18"><use href="#ic-test"/></svg>实测测评</a>
+    <a href="#" class="mobile-nav-item" data-page="dataviz"><svg width="18" height="18"><use href="#ic-chart"/></svg>数据可视化</a>
+    <a href="#" class="mobile-nav-item" data-page="glossary"><svg width="18" height="18"><use href="#ic-book"/></svg>术语百科</a>
+    <a href="#" class="mobile-nav-item" data-page="regulation"><svg width="18" height="18"><use href="#ic-shield"/></svg>法规标准</a>
+    <a href="#" class="mobile-nav-item" data-page="collect"><svg width="18" height="18"><use href="#ic-download"/></svg>数据采集</a>
+    <a href="#" class="mobile-nav-item" data-page="favorites"><svg width="18" height="18"><use href="#ic-star"/></svg>我的收藏</a>
   </nav>
 
-  <!-- 主内容区 -->
+  <!-- 主布局 -->
   <div class="main-layout">
-    <!-- 侧边栏 -->
     <aside class="sidebar">
       <nav class="sidebar-nav">
-        <a href="#" class="nav-item active" data-page="home"><span class="nav-icon">🏠</span>首页动态</a>
-        <a href="#" class="nav-item" data-page="compare"><span class="nav-icon">📊</span>方案对比</a>
-        <a href="#" class="nav-item" data-page="matrix"><span class="nav-icon">🧩</span>功能矩阵</a>
-        <a href="#" class="nav-item" data-page="versions"><span class="nav-icon">📦</span>版本中心</a>
-        <a href="#" class="nav-item" data-page="ota"><span class="nav-icon">🔄</span>OTA追踪</a>
-        <a href="#" class="nav-item" data-page="test"><span class="nav-icon">🧪</span>实测测评</a>
-        <a href="#" class="nav-item" data-page="dataviz"><span class="nav-icon">📈</span>数据可视化</a>
-        <a href="#" class="nav-item" data-page="glossary"><span class="nav-icon">📖</span>术语百科</a>
-        <a href="#" class="nav-item" data-page="regulation"><span class="nav-icon">⚖️</span>法规标准</a>
-        <a href="#" class="nav-item" data-page="collect"><span class="nav-icon">💾</span>数据采集</a>
-        <a href="#" class="nav-item" data-page="favorites"><span class="nav-icon">⭐</span>我的收藏</a>
+        <a href="#" class="nav-item active" data-page="home"><svg class="nav-icon" width="17" height="17"><use href="#ic-home"/></svg>首页动态</a>
+        <a href="#" class="nav-item" data-page="compare"><svg class="nav-icon" width="17" height="17"><use href="#ic-compare"/></svg>方案对比</a>
+        <a href="#" class="nav-item" data-page="matrix"><svg class="nav-icon" width="17" height="17"><use href="#ic-matrix"/></svg>功能矩阵</a>
+        <a href="#" class="nav-item" data-page="versions"><svg class="nav-icon" width="17" height="17"><use href="#ic-versions"/></svg>版本中心</a>
+        <a href="#" class="nav-item" data-page="ota"><svg class="nav-icon" width="17" height="17"><use href="#ic-ota"/></svg>OTA追踪</a>
+        <a href="#" class="nav-item" data-page="test"><svg class="nav-icon" width="17" height="17"><use href="#ic-test"/></svg>实测测评</a>
+        <a href="#" class="nav-item" data-page="dataviz"><svg class="nav-icon" width="17" height="17"><use href="#ic-chart"/></svg>数据可视化</a>
+        <a href="#" class="nav-item" data-page="glossary"><svg class="nav-icon" width="17" height="17"><use href="#ic-book"/></svg>术语百科</a>
+        <a href="#" class="nav-item" data-page="regulation"><svg class="nav-icon" width="17" height="17"><use href="#ic-shield"/></svg>法规标准</a>
+        <a href="#" class="nav-item" data-page="collect"><svg class="nav-icon" width="17" height="17"><use href="#ic-download"/></svg>数据采集</a>
+        <a href="#" class="nav-item" data-page="favorites"><svg class="nav-icon" width="17" height="17"><use href="#ic-star"/></svg>我的收藏</a>
       </nav>
       <div class="sidebar-tags">
         <h3 class="tag-title">快捷标签</h3>
@@ -70,9 +88,8 @@
       </div>
     </aside>
 
-    <!-- 内容区 -->
     <main class="content">
-      <!-- ===== 首页动态 ===== -->
+      <!-- 页面内容与之前相同 -->
       <div class="page active" id="page-home">
         <div class="page-header">
           <div>
@@ -80,26 +97,20 @@
             <p class="page-subtitle">智能驾驶行业最新动态与数据概览</p>
           </div>
         </div>
-
         <div class="stats-grid">
           <div class="stat-card" onclick="switchPage('compare')" style="cursor:pointer">
-            <div class="stat-number">12</div>
-            <div class="stat-label">监测方案总数</div>
+            <div class="stat-number">12</div><div class="stat-label">监测方案总数</div>
           </div>
           <div class="stat-card" onclick="switchPage('versions')" style="cursor:pointer">
-            <div class="stat-number">11</div>
-            <div class="stat-label">近期版本更新</div>
+            <div class="stat-number">15</div><div class="stat-label">近期版本更新</div>
           </div>
           <div class="stat-card" onclick="switchPage('test')" style="cursor:pointer">
-            <div class="stat-number">12</div>
-            <div class="stat-label">实测记录数</div>
+            <div class="stat-number">12</div><div class="stat-label">实测记录数</div>
           </div>
           <div class="stat-card">
-            <div class="stat-number">12</div>
-            <div class="stat-label">活跃品牌数</div>
+            <div class="stat-number">12</div><div class="stat-label">活跃品牌数</div>
           </div>
         </div>
-
         <section class="section">
           <h2 class="section-title">最新动态</h2>
           <div class="filter-tabs">
@@ -112,223 +123,25 @@
           </div>
           <div class="news-list" id="news-list"></div>
         </section>
-
-        <section class="section">
-          <h2 class="section-title">方案评分</h2>
-          <div class="score-grid" id="score-grid"></div>
-        </section>
-
-        <section class="section">
-          <div class="section-header">
-            <h2 class="section-title">近期版本更新</h2>
-            <a href="#" class="section-link" data-page="versions">版本中心 →</a>
-          </div>
-          <div class="version-list" id="version-list"></div>
-        </section>
-
-        <section class="section">
-          <div class="section-header">
-            <h2 class="section-title">问题追踪</h2>
-            <a href="#" class="section-link">查看全部 →</a>
-          </div>
-          <div class="issue-list" id="issue-list"></div>
-        </section>
+        <section class="section"><h2 class="section-title">方案评分</h2><div class="score-grid" id="score-grid"></div></section>
+        <section class="section"><div class="section-header"><h2 class="section-title">近期版本更新</h2><a href="#" class="section-link" data-page="versions">版本中心 &rarr;</a></div><div class="version-list" id="version-list"></div></section>
+        <section class="section"><div class="section-header"><h2 class="section-title">问题追踪</h2><a href="#" class="section-link">查看全部 &rarr;</a></div><div class="issue-list" id="issue-list"></div></section>
       </div>
 
-      <!-- ===== 方案对比 ===== -->
-      <div class="page" id="page-compare">
-        <h1 class="page-title">方案对比</h1>
-        <p class="page-subtitle">各智能驾驶方案核心参数对比</p>
-        <div class="compare-table-wrap">
-          <table class="compare-table" id="compare-table"></table>
-        </div>
-      </div>
-
-      <!-- ===== 功能矩阵 ===== -->
-      <div class="page" id="page-matrix">
-        <h1 class="page-title">功能矩阵</h1>
-        <p class="page-subtitle">各方案功能支持情况一览</p>
-        <div class="matrix-table-wrap">
-          <table class="matrix-table" id="matrix-table"></table>
-        </div>
-      </div>
-
-      <!-- ===== 版本中心 ===== -->
-      <div class="page" id="page-versions">
-        <h1 class="page-title">版本中心</h1>
-        <p class="page-subtitle">按品牌查看版本更新历史 · 数据严格追踪</p>
-        <div class="version-brand-tabs" id="version-brand-tabs"></div>
-        <div class="version-groups" id="version-groups"></div>
-        <div class="version-stats" id="version-stats"></div>
-      </div>
-
-      <!-- ===== OTA追踪 ===== -->
-      <div class="page" id="page-ota">
-        <h1 class="page-title">OTA追踪</h1>
-        <p class="page-subtitle">实时追踪各品牌OTA推送进度</p>
-        <div class="ota-list" id="ota-list"></div>
-      </div>
-
-      <!-- ===== 实测测评 ===== -->
-      <div class="page" id="page-test">
-        <h1 class="page-title">实测测评</h1>
-        <p class="page-subtitle">真实场景下的智能驾驶能力测评</p>
-        <div class="test-list" id="test-list"></div>
-      </div>
-
-      <!-- ===== 数据可视化 ===== -->
-      <div class="page" id="page-dataviz">
-        <h1 class="page-title">数据可视化</h1>
-        <p class="page-subtitle">智能驾驶行业数据图表分析</p>
-        <div class="chart-container" id="chart-container">
-          <div class="chart-card">
-            <h3>方案综合评分雷达图</h3>
-            <canvas id="radar-chart"></canvas>
-          </div>
-          <div class="chart-card">
-            <h3>OTA更新频率</h3>
-            <canvas id="bar-chart"></canvas>
-          </div>
-          <div class="chart-card chart-card-wide">
-            <h3>各维度评分对比</h3>
-            <canvas id="score-compare-chart"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <!-- ===== 术语百科 ===== -->
-      <div class="page" id="page-glossary">
-        <h1 class="page-title">术语百科</h1>
-        <p class="page-subtitle">智能驾驶专业术语解读</p>
-        <div class="glossary-list" id="glossary-list"></div>
-      </div>
-
-      <!-- ===== 法规标准 ===== -->
-      <div class="page" id="page-regulation">
-        <h1 class="page-title">法规标准</h1>
-        <p class="page-subtitle">智能驾驶相关法规与标准追踪</p>
-        <div class="regulation-list" id="regulation-list"></div>
-      </div>
-
-      <!-- ===== 数据采集 ===== -->
-      <div class="page" id="page-collect">
-        <h1 class="page-title">数据采集</h1>
-        <p class="page-subtitle">手动录入 OTA 更新、实测数据、问题追踪 · 网页抓取智能采集 · 数据持久化保存</p>
-        <div class="collect-tabs-main">
-          <button class="collect-tab-main active" onclick="switchCollectMode('manual')">📝 手动录入</button>
-          <button class="collect-tab-main" onclick="switchCollectMode('scrape')">🌐 网页抓取</button>
-          <button class="collect-tab-main" onclick="switchCollectMode('import')">📥 导入数据</button>
-        </div>
-
-        <!-- 手动录入模式 -->
-        <div id="collect-manual" class="collect-content active">
-          <div class="collect-layout">
-            <div class="collect-form-col">
-              <div class="tool-card tool-card-form"><div id="collect-form-area"></div></div>
-            </div>
-            <div class="collect-records-col">
-              <div class="tool-card"><div id="collect-records-area"></div></div>
-              <div class="tool-card"><div id="collect-actions-area"></div></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 网页抓取模式 -->
-        <div id="collect-scrape" class="collect-content">
-          <div class="scrape-layout">
-            <div class="scrape-config-col">
-              <div class="tool-card">
-                <h3>🌐 搜索配置</h3>
-                <div class="form-row">
-                  <label>关键词 *</label>
-                  <input type="text" id="scrape-keyword" placeholder="如：华为ADS OTA 智能驾驶" />
-                </div>
-                <div class="form-row">
-                  <label>数据来源</label>
-                  <div class="checkbox-group">
-                    <label class="checkbox-item"><input type="checkbox" id="src-news" checked> 新闻网站</label>
-                    <label class="checkbox-item"><input type="checkbox" id="src-video" checked> 短视频平台</label>
-                    <label class="checkbox-item"><input type="checkbox" id="src-forum"> 品牌官网/论坛</label>
-                  </div>
-                </div>
-                <div class="form-row">
-                  <label>数据类型</label>
-                  <div class="checkbox-group">
-                    <label class="checkbox-item"><input type="checkbox" id="type-ota" checked> OTA 更新</label>
-                    <label class="checkbox-item"><input type="checkbox" id="type-test"> 测评/实测</label>
-                    <label class="checkbox-item"><input type="checkbox" id="type-news"> 新闻动态</label>
-                    <label class="checkbox-item"><input type="checkbox" id="type-issue"> 用户反馈</label>
-                  </div>
-                </div>
-                <div class="form-row">
-                  <label>抓取数量</label>
-                  <input type="number" id="scrape-limit" value="10" min="1" max="50" />
-                </div>
-                <div class="form-actions">
-                  <button class="btn-primary" onclick="startScrape()" id="btn-scrape">🚀 开始抓取</button>
-                  <button class="btn-secondary" onclick="clearScrapeResults()">清空结果</button>
-                </div>
-              </div>
-            </div>
-            <div class="scrape-results-col">
-              <div class="tool-card">
-                <div class="scrape-header">
-                  <h3>📊 抓取结果</h3>
-                  <span id="scrape-status" class="scrape-status"></span>
-                </div>
-                <div id="scrape-results" class="scrape-results-list"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 导入数据模式 -->
-        <div id="collect-import" class="collect-content">
-          <div class="collect-layout">
-            <div class="collect-form-col">
-              <div class="tool-card">
-                <h3>📥 数据导入</h3>
-                <p class="import-hint">支持导入 JSON/CSV 文件或将文本粘贴后解析</p>
-                <div class="form-row">
-                  <label>导入方式</label>
-                  <select id="import-type" onchange="toggleImportUI()">
-                    <option value="json">JSON 文件</option>
-                    <option value="csv">CSV 文件</option>
-                    <option value="text">文本粘贴</option>
-                  </select>
-                </div>
-                <div id="import-file-area">
-                  <label for="import-file" class="btn-secondary">选择文件</label>
-                  <input type="file" id="import-file" accept=".json,.csv,.txt" onchange="handleImportFile(this.files[0])" />
-                  <span id="import-file-name"></span>
-                </div>
-                <div id="import-text-area" style="display:none">
-                  <label>粘贴网页内容</label>
-                  <textarea id="import-text" rows="10" placeholder="粘贴网页内容或文章，系统将自动提取结构化数据..."></textarea>
-                  <button class="btn-primary" onclick="parseImportedText()">解析文本</button>
-                </div>
-              </div>
-            </div>
-            <div class="collect-records-col">
-              <div class="tool-card">
-                <h3>解析结果</h3>
-                <div id="import-results" class="records-list"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ===== 我的收藏 ===== -->
-      <div class="page" id="page-favorites">
-        <h1 class="page-title">我的收藏</h1>
-        <p class="page-subtitle">收藏的动态、版本、测评内容</p>
-        <div class="favorites-list" id="favorites-list"></div>
-      </div>
+      <div class="page" id="page-compare"><h1 class="page-title">方案对比</h1><p class="page-subtitle">各智能驾驶方案核心参数对比</p><div class="compare-table-wrap"><table class="compare-table" id="compare-table"></table></div></div>
+      <div class="page" id="page-matrix"><h1 class="page-title">功能矩阵</h1><p class="page-subtitle">各方案功能支持情况一览</p><div class="matrix-table-wrap"><table class="matrix-table" id="matrix-table"></table></div></div>
+      <div class="page" id="page-versions"><h1 class="page-title">版本中心</h1><p class="page-subtitle">按品牌查看版本更新历史 · 数据严格追踪</p><div class="version-brand-tabs" id="version-brand-tabs"></div><div class="version-groups" id="version-groups"></div><div class="version-stats" id="version-stats"></div></div>
+      <div class="page" id="page-ota"><h1 class="page-title">OTA追踪</h1><p class="page-subtitle">实时追踪各品牌OTA推送进度</p><div class="ota-list" id="ota-list"></div></div>
+      <div class="page" id="page-test"><h1 class="page-title">实测测评</h1><p class="page-subtitle">真实场景下的智能驾驶能力测评</p><div class="test-list" id="test-list"></div></div>
+      <div class="page" id="page-dataviz"><h1 class="page-title">数据可视化</h1><p class="page-subtitle">智能驾驶行业数据图表分析</p><div class="chart-container"><div class="chart-card"><h3>方案综合评分</h3><canvas id="radar-chart"></canvas></div><div class="chart-card"><h3>OTA更新频率</h3><canvas id="bar-chart"></canvas></div><div class="chart-card chart-card-wide"><h3>各维度评分对比</h3><canvas id="score-compare-chart"></canvas></div></div></div>
+      <div class="page" id="page-glossary"><h1 class="page-title">术语百科</h1><p class="page-subtitle">智能驾驶专业术语解读</p><div class="glossary-list" id="glossary-list"></div></div>
+      <div class="page" id="page-regulation"><h1 class="page-title">法规标准</h1><p class="page-subtitle">智能驾驶相关法规与标准追踪</p><div class="regulation-list" id="regulation-list"></div></div>
+      <div class="page" id="page-collect"><h1 class="page-title">数据采集</h1><p class="page-subtitle">手动录入OTA更新、实测数据、问题追踪 · 数据持久化保存</p><div class="collect-tabs-main"><button class="collect-tab-main active" onclick="switchCollectMode('manual')">手动录入</button><button class="collect-tab-main" onclick="switchCollectMode('scrape')">网页抓取</button><button class="collect-tab-main" onclick="switchCollectMode('import')">导入数据</button></div><div id="collect-manual" class="collect-content active"><div class="collect-layout"><div class="collect-form-col"><div class="tool-card tool-card-form"><div id="collect-form-area"></div></div></div><div class="collect-records-col"><div class="tool-card"><div id="collect-records-area"></div></div><div class="tool-card"><div id="collect-actions-area"></div></div></div></div></div><div id="collect-scrape" class="collect-content"><div class="scrape-layout"><div class="scrape-config-col"><div class="tool-card"><h3>搜索配置</h3><div class="form-row"><label>关键词 *</label><input type="text" id="scrape-keyword" placeholder="如：华为ADS OTA 智能驾驶"/></div><div class="form-row"><label>数据来源</label><div class="checkbox-group"><label class="checkbox-item"><input type="checkbox" id="src-news" checked>新闻网站</label><label class="checkbox-item"><input type="checkbox" id="src-video" checked>短视频平台</label><label class="checkbox-item"><input type="checkbox" id="src-forum">品牌官网/论坛</label></div></div><div class="form-row"><label>数据类型</label><div class="checkbox-group"><label class="checkbox-item"><input type="checkbox" id="type-ota" checked>OTA更新</label><label class="checkbox-item"><input type="checkbox" id="type-test">测评/实测</label><label class="checkbox-item"><input type="checkbox" id="type-news">新闻动态</label><label class="checkbox-item"><input type="checkbox" id="type-issue">用户反馈</label></div></div><div class="form-row"><label>抓取数量</label><input type="number" id="scrape-limit" value="10" min="1" max="50"/></div><div class="form-actions"><button class="btn-primary" onclick="startScrape()" id="btn-scrape">开始抓取</button><button class="btn-secondary" onclick="clearScrapeResults()">清空结果</button></div></div></div><div class="scrape-results-col"><div class="tool-card"><div class="scrape-header"><h3>抓取结果</h3><span id="scrape-status" class="scrape-status"></span></div><div id="scrape-results" class="scrape-results-list"></div></div></div></div></div><div id="collect-import" class="collect-content"><div class="collect-layout"><div class="collect-form-col"><div class="tool-card"><h3>数据导入</h3><p class="import-hint">支持导入 JSON/CSV 文件或将文本粘贴后解析</p><div class="form-row"><label>导入方式</label><select id="import-type" onchange="toggleImportUI()"><option value="json">JSON 文件</option><option value="csv">CSV 文件</option><option value="text">文本粘贴</option></select></div><div id="import-file-area"><label for="import-file" class="btn-secondary">选择文件</label><input type="file" id="import-file" accept=".json,.csv,.txt" onchange="handleImportFile(this.files[0])"/><span id="import-file-name"></span></div><div id="import-text-area" style="display:none"><label>粘贴网页内容</label><textarea id="import-text" rows="10" placeholder="粘贴网页内容或文章，系统将自动提取结构化数据..."></textarea><button class="btn-primary" onclick="parseImportedText()">解析文本</button></div></div></div><div class="collect-records-col"><div class="tool-card"><h3>解析结果</h3><div id="import-results" class="records-list"></div></div></div></div></div></div>
+      <div class="page" id="page-favorites"><h1 class="page-title">我的收藏</h1><p class="page-subtitle">收藏的动态、版本、测评内容</p><div class="favorites-list" id="favorites-list"></div></div>
     </main>
   </div>
 
-  <script src="data.js?v=3"></script>
-  <script src="app.js?v=3"></script>
+  <script src="data.js?v=4"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>
