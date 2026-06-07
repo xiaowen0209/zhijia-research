@@ -591,91 +591,83 @@ async function startScrape() {
 }
 
 async function frontendScrape(keyword, types, limit) {
+  const query = keyword + ' 智能驾驶 ' + types.join(' ');
   const results = [];
-  const query = keyword + ' 智能驾驶 自动驾驶 ' + types.join(' ');
+  const corsProxy = 'https://corsproxy.io/?';
 
-  // Step 1: Search via DuckDuckGo Lite (no API key needed)
-  const searchUrl = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`;
-  const proxies = [
-    (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-    (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-    (url) => url // direct try last
-  ];
-
+  // Bing search (accessible in China)
+  const bingUrl = `https://www.bing.com/search?q=${encodeURIComponent(query)}&count=${limit}`;
   let searchHtml = '';
-  for (const proxyFn of proxies) {
+
+  // Try via CORS proxy first
+  try {
+    const resp = await fetch(corsProxy + encodeURIComponent(bingUrl));
+    if (resp.ok) searchHtml = await resp.text();
+  } catch(e) {}
+
+  // Fallback: try direct (may hit CORS but worth trying)
+  if (!searchHtml) {
     try {
-      const resp = await fetch(proxyFn(searchUrl), { signal: AbortSignal.timeout(8000) });
-      if (resp.ok) { searchHtml = await resp.text(); break; }
-    } catch(e) { continue; }
+      const resp = await fetch(bingUrl);
+      if (resp.ok) searchHtml = await resp.text();
+    } catch(e) {}
   }
 
-  if (!searchHtml) throw new Error('无法连接到搜索引擎，请检查网络后重试');
+  if (!searchHtml) {
+    throw new Error('搜索请求被拦截，请尝试「导入数据→文本粘贴」方式');
+  }
 
-  // Step 2: Parse search results
+  // Parse Bing results
   const parser = new DOMParser();
   const doc = parser.parseFromString(searchHtml, 'text/html');
   const links = [];
+  const seen = new Set();
 
-  doc.querySelectorAll('a.result-link, a[rel="nofollow"], table a').forEach(a => {
-    const url = cleanDdgUrl(a.href);
+  // Bing search result selectors
+  doc.querySelectorAll('li.b_algo h2 a, .b_title a, #b_results h2 a').forEach(a => {
+    const url = a.href;
     const title = a.textContent.trim();
-    if (url && title && !url.includes('duckduckgo.com') && links.length < limit) {
+    if (url && title && url.startsWith('http') && !seen.has(url) && !url.includes('bing.com') && !url.includes('microsoft.com')) {
+      seen.add(url);
       links.push({ url, title });
     }
   });
 
-  // Step 3: For each URL, try to get basic metadata
-  for (const link of links) {
-    try {
-      const item = {
-        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-        source: guessSource(link.url),
-        type: guessType(link.title, types),
-        title: link.title,
-        content: '',
-        date: extractDateFromTitle(link.title),
-        url: link.url,
-        parsed: { brand: findBrand(link.title) }
-      };
+  // Also try to get snippet text
+  doc.querySelectorAll('li.b_algo .b_caption p, .b_algo .b_lineclamp2').forEach((p, i) => {
+    if (links[i] && !links[i].snippet) {
+      links[i].snippet = p.textContent.trim().slice(0, 300);
+    }
+  });
 
-      // Try to fetch and parse the page
-      try {
-        const pageResp = await fetch(proxies[1](link.url), { signal: AbortSignal.timeout(5000) });
-        if (pageResp.ok) {
-          const html = await pageResp.text();
-          const pageDoc = new DOMParser().parseFromString(html, 'text/html');
-          // Remove noise
-          pageDoc.querySelectorAll('script,style,nav,footer,iframe,.ad,.sidebar,.comment').forEach(el => el.remove());
-          const text = (pageDoc.body?.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 2000);
-          if (text.length > 100) {
-            item.content = text;
-            item.date = extractDateFromTitle(item.content + ' ' + item.title) || item.date;
-            // Try to extract more metadata
-            const m = pageDoc.querySelector('meta[name=\"description\"]');
-            if (m) item.content = (m.getAttribute('content') || '') + ' ' + item.content;
-          }
-        }
-      } catch(e) { /* page fetch failed, use search result only */ }
-
-      if (!item.content) item.content = link.title;
-      results.push(item);
-    } catch(e) { continue; }
-  }
-
-  // Step 4: Also try Microsoft Bing search as fallback
-  if (results.length === 0) {
+  if (links.length === 0) {
+    // No results from Bing - suggest manual import
     results.push({
       id: Date.now().toString(36),
-      source: '搜索引擎',
-      type: 'news',
-      title: `搜索结果: ${keyword}`,
-      content: `请尝试其他关键词，或将相关文章内容粘贴到「导入数据→文本粘贴」进行解析`,
+      source: '提示',
+      type: 'info',
+      title: `未找到与「${keyword}」相关的搜索结果`,
+      content: '搜索请求可能被网络限制。建议使用「导入数据→文本粘贴」功能：复制36氪/懂车帝/汽车之家等网站的文章内容，粘贴后自动解析。',
       date: new Date().toISOString().slice(0,10),
       url: '',
       parsed: null
     });
+    return results;
   }
+
+  // Build results from search snippets (no need to fetch each page)
+  links.slice(0, limit).forEach(link => {
+    results.push({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      source: guessSource(link.url),
+      type: guessType(link.title + ' ' + (link.snippet||''), types),
+      title: link.title,
+      content: link.snippet || link.title,
+      date: extractDateFromTitle(link.title + ' ' + (link.snippet||'')),
+      url: link.url,
+      parsed: { brand: findBrand(link.title + ' ' + (link.snippet||'')) }
+    });
+  });
 
   return results;
 }
