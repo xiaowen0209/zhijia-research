@@ -373,7 +373,29 @@ const GLOSSARY_DATA = [
   // 数据相关
   { term: "4D标注", full: "4D Annotation", desc: "在3D空间标注基础上加入时间维度(4D)，标注目标在连续时间帧中的运动轨迹。是端到端自动驾驶模型训练所需的高质量数据标注形式。" },
   { term: "自动标注", full: "Auto-labeling", desc: "利用已训练模型对新采集数据进行自动标注，大幅降低人工标注成本。典型流程：大模型预标注→人工校验修正→模型再训练→标注质量提升。" },
-  { term: "影子模式", full: "Shadow Mode", desc: "车载算法在后台运行但不实际控制车辆，将决策与实际驾驶员操作对比。大规模采集算法差异数据用于训练优化，是特斯拉等企业数据闭环的核心手段。" }
+  { term: "影子模式", full: "Shadow Mode", desc: "车载算法在后台运行但不实际控制车辆，将决策与实际驾驶员操作对比。大规模采集算法差异数据用于训练优化，是特斯拉等企业数据闭环的核心手段。" },
+  { term: "数据清洗", full: "Data Cleaning", desc: "对采集的原始驾驶数据进行去噪、去重、过滤低质量样本等处理的过程。高质量数据是自动驾驶算法性能的基础，数据清洗占数据闭环工作量的60%以上。" },
+  { term: "回灌测试", full: "Data Replay / Log Replay", desc: "将实车采集的道路数据重新注入自动驾驶系统进行离线仿真测试。可大规模复现真实场景、回归验证算法修改效果，是数据闭环中的关键验证环节。" },
+
+  // ADAS 基础功能
+  { term: "ACC", full: "Adaptive Cruise Control", desc: "自适应巡航控制。L1级辅助驾驶功能，自动调整车速以保持与前车的安全距离，是L2+自动驾驶的纵向控制基础。" },
+  { term: "LKA", full: "Lane Keeping Assist", desc: "车道保持辅助。L1级功能，通过摄像头识别车道线，自动微调方向盘使车辆保持在车道中心。与ACC组合构成L2级基础功能。" },
+  { term: "AEB", full: "Automatic Emergency Braking", desc: "自动紧急制动。检测到即将发生碰撞时自动施加制动力，是最重要的主动安全功能之一。各国已将AEB纳入新车评价标准(NCAP)。" },
+  { term: "APA", full: "Automatic Parking Assist", desc: "自动泊车辅助。通过超声波传感器和摄像头探测车位并自动完成泊车操作。从半自动(驾驶员控制挡位)演进到全自动(一键泊车)和记忆泊车(跨楼层)。" },
+
+  // 量产相关
+  { term: "域控制器", full: "Domain Controller", desc: "按功能域(智驾域/座舱域/车身域等)划分的集中式计算平台。整合多个ECU功能，提供统一算力支撑。代表：华为MDC、德赛西威IPU、地平线Matrix。" },
+  { term: "车规级", full: "Automotive-grade", desc: "满足汽车行业严格可靠性标准的元器件等级。需通过AEC-Q100(芯片)、ISO 16750(环境)、ISO 7637(电磁兼容)等认证，工作温度范围-40~125°C，失效率<1PPM。" },
+  { term: "冗余设计", full: "Redundancy Design", desc: "关键系统设置备份以保证单点故障时仍能安全运行。自动驾驶六大冗余：感知冗余、计算冗余、执行冗余、通信冗余、电源冗余、制动冗余。是L3+系统的安全基石。" },
+  { term: "Robotaxi", full: "Robotaxi (Autonomous Taxi)", desc: "自动驾驶出租车。L4级自动驾驶在出行领域的主要商业应用，在限定区域内提供无人驾驶出行服务。代表：百度Apollo萝卜快跑、Waymo One、小马智行PonyPilot。" },
+  { term: "FOTA", full: "Firmware Over-The-Air", desc: "固件远程升级。针对车辆底层固件(如BMS、VCU、智驾域控固件)的远程更新，可涉及车辆行驶安全相关系统，升级过程需满足功能安全要求。" },
+  { term: "SOTA", full: "Software Over-The-Air", desc: "软件远程升级。针对车载应用软件(如地图、语音助手、娱乐系统)的远程更新，不涉及车辆行驶安全系统，升级风险和门槛低于FOTA。" },
+  { term: "白名单/灰名单", full: "Whitelist / Greylist", desc: "自动驾驶ODD管理机制。白名单为已验证可安全使用自动驾驶功能的路段；灰名单为部分条件(天气/时段)下可行的路段；黑名单为禁止使用路段。是L3+量产车的安全管理基础。" },
+
+  // 评测相关
+  { term: "评测基准", full: "Benchmark", desc: "衡量自动驾驶系统性能的标准化测试体系。包含公开数据集评测(NuScenes、Waymo Open Dataset)、封闭场地测试(NCAP场景)和开放道路评测(MPI/MCP)。" },
+  { term: "横向控制", full: "Lateral Control", desc: "车辆横向运动(转向)的精确控制，包括车道保持、换道、避障等场景下的方向盘转角控制。评价指标：中心线偏差、转向平滑度、超调量。" },
+  { term: "纵向控制", full: "Longitudinal Control", desc: "车辆纵向运动(加速/制动)的精确控制，包括跟车巡航、启停、紧急制动等场景。评价指标：跟车时距误差、加速度波动、制动舒适度。" }
 ];
 
 const REGULATION_DATA = [
