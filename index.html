@@ -7,6 +7,7 @@
   <meta name="description" content="智能驾驶研究平台 — 方案对比 · 版本追踪 · 实测测评 · 术语百科" />
   <link rel="icon" href="favicon.ico" sizes="256x256" type="image/x-icon" />
   <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -97,20 +98,7 @@
             <p class="page-subtitle">智能驾驶行业最新动态与数据概览</p>
           </div>
         </div>
-        <div class="stats-grid">
-          <div class="stat-card" onclick="switchPage('compare')" style="cursor:pointer">
-            <div class="stat-number">12</div><div class="stat-label">监测方案总数</div>
-          </div>
-          <div class="stat-card" onclick="switchPage('versions')" style="cursor:pointer">
-            <div class="stat-number">15</div><div class="stat-label">近期版本更新</div>
-          </div>
-          <div class="stat-card" onclick="switchPage('test')" style="cursor:pointer">
-            <div class="stat-number">12</div><div class="stat-label">实测记录数</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-number">12</div><div class="stat-label">活跃品牌数</div>
-          </div>
-        </div>
+        <div class="stats-grid" id="home-stats"></div>
         <section class="section">
           <h2 class="section-title">最新动态</h2>
           <div class="filter-tabs">
