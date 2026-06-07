@@ -156,8 +156,10 @@
       <!-- ===== 版本中心 ===== -->
       <div class="page" id="page-versions">
         <h1 class="page-title">版本中心</h1>
-        <p class="page-subtitle">各方案版本更新历史</p>
-        <div class="version-timeline" id="version-timeline"></div>
+        <p class="page-subtitle">按品牌查看版本更新历史 · 数据严格追踪</p>
+        <div class="version-brand-tabs" id="version-brand-tabs"></div>
+        <div class="version-groups" id="version-groups"></div>
+        <div class="version-stats" id="version-stats"></div>
       </div>
 
       <!-- ===== OTA追踪 ===== -->
@@ -211,16 +213,20 @@
       <!-- ===== 数据采集 ===== -->
       <div class="page" id="page-collect">
         <h1 class="page-title">数据采集</h1>
-        <p class="page-subtitle">手动录入OTA更新、实测数据、问题追踪</p>
-        <div class="collect-tools">
-          <div class="tool-card">
-            <h3>📋 数据导入</h3>
-            <p>支持从公开数据源导入智能驾驶相关数据</p>
-            <button class="btn-primary" onclick="showToast('导入功能开发中，敬请期待', 'info')">开始导入</button>
+        <p class="page-subtitle">手动录入OTA更新、实测数据、问题追踪 · 数据持久化保存</p>
+        <div class="collect-layout">
+          <div class="collect-form-col">
+            <div class="tool-card tool-card-form">
+              <div id="collect-form-area"></div>
+            </div>
           </div>
-          <div class="tool-card tool-card-form">
-            <h3>📝 手动录入</h3>
-            <div id="collect-form-area"></div>
+          <div class="collect-records-col">
+            <div class="tool-card">
+              <div id="collect-records-area"></div>
+            </div>
+            <div class="tool-card">
+              <div id="collect-actions-area"></div>
+            </div>
           </div>
         </div>
       </div>
