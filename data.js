@@ -148,17 +148,111 @@ const SCORE_DATA = [
 ];
 
 const VERSION_DATA = [
-  { brand: "HX", name: "地平线HSD", version: "HSD V2.0(计划Q3)", date: "2026-06-03", desc: "高盛维持买入评级、V2.0安全/泊车/驾驶全面升级、J6P采用率预期上升" },
-  { brand: "H", name: "华为ADS", version: "ADS 5.0", date: "2026-06-01", desc: "城区L4级自动驾驶、WEWA架构全面升级、预计Q3全量推送" },
-  { brand: "X", name: "小鹏XNGP", version: "XNGP 6.2.0", date: "2026-05-31", desc: "VLA 2.0端到端视觉-动作直连、决策延迟降至80ms、无导航NGP漫游" },
-  { brand: "HX", name: "地平线HSD", version: "星空6P+比亚迪合作", date: "2026-05-30", desc: "比亚迪正式意向合作星空6P、单车省1500-4000元内存成本、Q4首款合作车型落地" },
-  { brand: "BYD", name: "比亚迪天神之眼", version: "天神之眼5.0", date: "2026-05-28", desc: "自研璇玑A3芯片、城市领航+智能泊车安全兜底" },
-  { brand: "HX", name: "地平线HSD", version: "HSD V1.6+星空6P+KaKaClaw", date: "2026-04-22", desc: "中国首款5nm舱驾融合芯片650TOPS、整车智能体OS咖咖虾发布、HSD V1.6新增遥控泊车/倒车紧急制动" },
-  { brand: "T", name: "特斯拉FSD", version: "FSD V14(中国版)", date: "2026-05-21", desc: "FSD Supervised正式入华、当前为功能缩减版" },
-  { brand: "WR", name: "文远知行WeRide", version: "Ride 6.0", date: "2026-05-20", desc: "L4级Robotaxi三城规模运营、0接管率99.2%" },
-  { brand: "BD", name: "百度Apollo", version: "Apollo 8.0", date: "2026-05-18", desc: "端到端大模型架构升级、纯视觉城市NOA覆盖120城" },
-  { brand: "H", name: "华为ADS", version: "ADS 4.1", date: "2026-05-15", desc: "eAES智能避障、城市NOA覆盖近400城" },
-  { brand: "Mi", name: "小米智驾", version: "Pilot 1.16", date: "2026-05-13", desc: "XLA架构+世界模型、全域车道级导航101城" }
+  {
+    brand: "HX", name: "地平线HSD", version: "HSD V2.0", date: "2026-06-03",
+    chip: "征程6P (J6P)", arch: "一段式端到端 + 强化学习 + VLM",
+    features: ["安全水平全面升级", "泊车体验优化", "驾驶体验升级", "J6P采用率预期上升"],
+    scope: "计划中", riskLevel: "低",
+    desc: "高盛维持买入评级，预期HSD V2.0将于Q3发布，安全水平/泊车/驾驶体验全面升级，升级后HSD平台将推动J6P芯片采用率上升"
+  },
+  {
+    brand: "H", name: "华为ADS", version: "ADS 5.0", date: "2026-06-01",
+    chip: "昇腾610 + MDC610", arch: "WEWA + GOD+PDP",
+    features: ["城区L4级自动驾驶", "高速L3有条件自动驾驶", "WEWA架构全面升级", "预计Q3全量推送"],
+    scope: "灰度", riskLevel: "低",
+    desc: "ADS 5.0正式发布核心架构细节，城区实现L4级自动驾驶，高速支持L3有条件自动驾驶，WEWA架构全面升级，预计Q3全量推送"
+  },
+  {
+    brand: "X", name: "小鹏XNGP", version: "XNGP 6.2.0", date: "2026-05-31",
+    chip: "图灵芯片 (2250TOPS)", arch: "VLA 2.0 端到端视觉-动作直连",
+    features: ["VLA 2.0架构上线", "决策延迟降至80ms", "无导航NGP漫游", "P挡启动"],
+    scope: "全量", riskLevel: "低",
+    desc: "XNGP OTA 6.2.0开始推送，搭载VLA 2.0端到端视觉-动作直连架构，决策延迟降至80ms，支持无导航NGP漫游和P挡启动"
+  },
+  {
+    brand: "HX", name: "地平线HSD", version: "星空6P + 比亚迪合作", date: "2026-05-30",
+    chip: "星空6P", arch: "一段式端到端",
+    features: ["比亚迪正式意向合作星空6P", "单车省1500-4000元内存成本", "Q4首款合作车型落地"],
+    scope: "计划中", riskLevel: "中",
+    desc: "比亚迪正式意向合作星空6P芯片，单车可节省1500-4000元内存成本，Q4首款合作车型落地"
+  },
+  {
+    brand: "BYD", name: "比亚迪天神之眼", version: "天神之眼5.0", date: "2026-05-28",
+    chip: "自研4nm璇玑A3×2 (508TOPS)", arch: "多模态BEV + 安全兜底",
+    features: ["自研4nm璇玑A3芯片(254TOPS/颗)", "城市领航+智能泊车双场景安全兜底", "B激光版1.2万元可选装"],
+    scope: "新发布", riskLevel: "低",
+    desc: "天神之眼5.0发布，搭载自研4nm璇玑A3芯片(254TOPS/颗)，城市领航+智能泊车双场景安全兜底，B激光版1.2万元可选装"
+  },
+  {
+    brand: "HX", name: "地平线HSD", version: "HSD V1.6 + 星空6P + KaKaClaw", date: "2026-04-22",
+    chip: "星空6P (中国首款5nm舱驾融合芯片 650TOPS)", arch: "一段式端到端 + 整车智能体OS",
+    features: ["中国首款5nm舱驾融合芯片650TOPS", "整车智能体OS咖咖虾发布", "HSD V1.6新增遥控泊车", "倒车紧急制动"],
+    scope: "灰度", riskLevel: "低",
+    desc: "中国首款5nm舱驾融合芯片星空6P发布(650TOPS)，整车智能体OS咖咖虾发布，HSD V1.6新增遥控泊车/倒车紧急制动"
+  },
+  {
+    brand: "T", name: "特斯拉FSD", version: "FSD V14 (中国版)", date: "2026-05-21",
+    chip: "HW4.0 (720TOPS)", arch: "自回归Transformer",
+    features: ["FSD Supervised正式入华", "当前为功能缩减版(2024.45.32.12)", "满血V14版本预计Q3全面推送"],
+    scope: "灰度", riskLevel: "中",
+    desc: "FSD Supervised 5月21日正式在中国市场推送，当前版本为2024.45.32.12功能缩减版，满血V14版本预计Q3全面推送"
+  },
+  {
+    brand: "WR", name: "文远知行WeRide", version: "Ride 6.0", date: "2026-05-20",
+    chip: "自研L4计算平台 (1200TOPS)", arch: "L4全栈自研",
+    features: ["L4级Robotaxi三城规模运营", "0接管率99.2%", "商业化运营验证"],
+    scope: "全量", riskLevel: "低",
+    desc: "L4级Robotaxi三城规模运营，0接管率99.2%，商业化运营持续验证中"
+  },
+  {
+    brand: "BD", name: "百度Apollo", version: "Apollo 8.0", date: "2026-05-18",
+    chip: "昆仑芯片 (640TOPS)", arch: "端到端大模型",
+    features: ["端到端大模型架构升级", "纯视觉城市NOA覆盖120城", "感知决策一体化"],
+    scope: "全量", riskLevel: "低",
+    desc: "端到端大模型架构升级，纯视觉城市NOA覆盖120城，感知决策一体化"
+  },
+  {
+    brand: "H", name: "华为ADS", version: "ADS 4.1", date: "2026-05-15",
+    chip: "昇腾610 + MDC610", arch: "GOD + PDP",
+    features: ["eAES智能避障(边刹边让)", "后向VRU风险预警", "一键启动领航辅助", "城市NOA覆盖近400城"],
+    scope: "全量", riskLevel: "低",
+    desc: "ADS 4.1版本推送，新增eAES智能避障(边刹边让)、后向VRU风险预警、一键启动领航辅助，城市NOA覆盖近400城"
+  },
+  {
+    brand: "Mi", name: "小米智驾", version: "Pilot 1.16", date: "2026-05-13",
+    chip: "自研芯片 (508TOPS)", arch: "XLA + 世界模型",
+    features: ["XLA架构上线", "世界模型引入", "全域车道级导航Beta覆盖101城", "语音控车Beta", "收费站通行辅助"],
+    scope: "分批", riskLevel: "低",
+    desc: "小米智驾OTA 1.16推送，引入XLA架构与世界模型，全域车道级导航Beta覆盖101城，新增语音控车Beta和收费站通行辅助"
+  },
+  {
+    brand: "X", name: "小鹏XNGP", version: "天玑AI OS 6.1.0", date: "2026-04-04",
+    chip: "图灵芯片 (2250TOPS)", arch: "端到端大模型",
+    features: ["天玑AI OS全新交互", "自研图灵芯片算力2250TOPS", "XNGP能力全面升级"],
+    scope: "全量", riskLevel: "低",
+    desc: "天玑AI OS 6.1.0全量推送，全新AI交互体验，自研图灵芯片算力2250TOPS，XNGP能力全面升级"
+  },
+  {
+    brand: "T", name: "特斯拉FSD", version: "FSD V14.3", date: "2026-04-01",
+    chip: "HW4.0 (720TOPS)", arch: "自回归Transformer",
+    features: ["神经网络架构全面重构", "采用自回归Transformer", "3-5秒时空记忆能力", "HW4.0适配完成"],
+    scope: "全量(海外)", riskLevel: "低",
+    desc: "FSD V14.3开始海外大范围推送，神经网络架构全面重构，采用自回归Transformer，3-5秒时空记忆能力，HW4.0适配完成"
+  },
+  {
+    brand: "L", name: "理想AD Max", version: "AD Max V13", date: "2026-03-15",
+    chip: "地平线J6P×2 (560TOPS)", arch: "VLA + 行为强化学习",
+    features: ["1000万Clips训练大模型", "VLA司机大模型", "行为强化学习", "VLA充电功能上线", "AD Pro首次获城市NOA"],
+    scope: "全量", riskLevel: "低",
+    desc: "AD Max V13全量推送，搭载1000万Clips训练大模型，VLA司机大模型+行为强化学习，VLA充电功能上线，AD Pro首次获城市NOA"
+  },
+  {
+    brand: "L", name: "理想AD Max", version: "OTA 8.2", date: "2026-01-21",
+    chip: "地平线J6P×2 (560TOPS)", arch: "VLA司机大模型",
+    features: ["AD Max多项功能优化", "VLA司机大模型持续进化", "ETC自动通过稳定性提升"],
+    scope: "全量", riskLevel: "低",
+    desc: "OTA 8.2版本推送，AD Max多项功能优化，VLA司机大模型持续进化，ETC自动通过稳定性提升"
+  }
 ];
 
 const ISSUE_DATA = [
