@@ -493,6 +493,372 @@ function switchRecordTab(tab) {
   if (form) form.classList.add('active');
 }
 
+// ===== 网页抓取功能 =====
+let scrapeMode = 'manual'; // manual | scrape | import
+let scrapeResults = [];
+let scrapeTask = null;
+let apiEndpoint = ''; // Will be set after deployment
+
+function switchCollectMode(mode) {
+  scrapeMode = mode;
+  document.querySelectorAll('.collect-tab-main').forEach(t => t.classList.remove('active'));
+  event?.target?.classList.add('active');
+
+  document.getElementById('collect-manual').classList.toggle('active', mode === 'manual');
+  document.getElementById('collect-scrape').classList.toggle('active', mode === 'scrape');
+  document.getElementById('collect-import').classList.toggle('active', mode === 'import');
+
+  if (mode === 'manual') recordTab = 'ota';
+}
+
+// 启动抓取
+async function startScrape() {
+  const keyword = document.getElementById('scrape-keyword')?.value?.trim();
+  if (!keyword) { showToast('请输入搜索关键词', 'error'); return; }
+
+  // Get selected options
+  const sources = [];
+  if (document.getElementById('src-news')?.checked) sources.push('news');
+  if (document.getElementById('src-video')?.checked) sources.push('video');
+  if (document.getElementById('src-forum')?.checked) sources.push('forum');
+
+  const types = [];
+  if (document.getElementById('type-ota')?.checked) types.push('ota');
+  if (document.getElementById('type-test')?.checked) types.push('test');
+  if (document.getElementById('type-news')?.checked) types.push('news');
+  if (document.getElementById('type-issue')?.checked) types.push('issue');
+
+  if (sources.length === 0) sources.push('news', 'video', 'forum');
+  if (types.length === 0) types.push('ota', 'test');
+
+  const limit = parseInt(document.getElementById('scrape-limit')?.value) || 10;
+
+  // Show loading state
+  document.getElementById('btn-scrape').disabled = true;
+  document.getElementById('scrape-status').innerHTML = '<span class="scrape-status-loading">⏳ 抓取中...</span>';
+  document.getElementById('scrape-results').innerHTML = '<div class="scrape-loading">正在搜索和抓取内容，请稍候...</div>';
+
+  try {
+    const response = await fetch(apiEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keyword, sources, dataTypes: types, limit })
+    });
+    const data = await response.json();
+
+    scrapeResults = data.results || [];
+    renderScrapeResults();
+    showToast(`抓取完成，共找到 ${scrapeResults.length} 条结果`, data.success ? 'success' : 'info');
+  } catch (error) {
+    document.getElementById('scrape-results').innerHTML = `<div class="scrape-error">抓取失败: ${error.message}</div>`;
+    showToast('抓取失败，请检查网络连接', 'error');
+  } finally {
+    document.getElementById('btn-scrape').disabled = false;
+  }
+}
+
+function renderScrapeResults() {
+  const container = document.getElementById('scrape-results');
+  if (!container) return;
+
+  if (scrapeResults.length === 0) {
+    container.innerHTML = `<div class="empty-state" style="padding:30px"><span class="empty-icon">📭</span><p>没有找到相关内容</p><p class="empty-hint">尝试调整搜索关键词</p></div>`;
+    return;
+  }
+
+  container.innerHTML = scrapeResults.map((r, i) => `
+    <div class="scrape-result-item" data-id="${r.id}">
+      <div class="scrape-result-header">
+        <span class="scrape-type">${getSourceIcon(r.source)} ${getDataTypeLabel(r.type)}</span>
+        <span class="scrape-date">${r.date || '未知'}</span>
+        <span class="scrape-source">${r.source || '未知'}</span>
+      </div>
+      <div class="scrape-result-title">${r.title || '无标题'}</div>
+      <div class="scrape-result-content">${(r.content || '').slice(0, 150)}...</div>
+      <div class="scrape-result-url">
+        <a href="${r.url || '#'}" target="_blank" rel="noopener noreferrer">${r.url || '未知URL'}</a>
+      </div>
+      <div class="scrape-result-actions">
+        <button class="btn-sm btn-secondary" onclick="viewScrapeDetail('${r.id}')">查看详情</button>
+        ${r.parsed ? `<button class="btn-sm btn-primary" onclick="importScrapeResult('${r.id}')">导入</button>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function getSourceIcon(source) {
+  if (source === '36氪') return '📰';
+  if (source === '短视频') return '📱';
+  if (source === '品牌官网' || source === '论坛') return '🌐';
+  if (source === 'unknown') return '📄';
+  return '📄';
+}
+
+function getDataTypeLabel(type) {
+  const map = { ota: 'OTA', test: '实测', news: '新闻', issue: '问题', unknown: '其他' };
+  return map[type] || '其他';
+}
+
+function viewScrapeDetail(id) {
+  const r = scrapeResults.find(x => x.id === id);
+  if (!r) return;
+  // Show full content in modal or expand
+  const item = document.querySelector(`.scrape-result-item[data-id="${id}"]`);
+  const contentEl = item.querySelector('.scrape-result-content');
+  contentEl.textContent = r.content || '暂无内容';
+  contentEl.style.maxHeight = 'none';
+  const btn = item.querySelector('.scrape-result-actions button.btn-secondary');
+  if (btn) btn.textContent = '收起';
+}
+
+function clearScrapeResults() {
+  scrapeResults = [];
+  renderScrapeResults();
+  showToast('已清空抓取结果');
+}
+
+function importScrapeResult(id) {
+  const r = scrapeResults.find(x => x.id === id);
+  if (!r || !r.parsed) return;
+
+  const typeMap = { ota: 'ota', test: 'test', news: 'news', issue: 'issue' };
+  const targetArr = typeMap[r.type];
+
+  if (targetArr === 'ota') {
+    const newRec = {
+      id: Date.now(),
+      brand: r.parsed.brand || 'H',
+      name: r.parsed.brand || '未知品牌',
+      version: r.parsed.version || '',
+      date: r.date || new Date().toISOString().slice(0,10),
+      chip: '',
+      arch: '',
+      features: r.parsed.features || [],
+      scope: '灰度',
+      riskLevel: '低',
+      desc: r.title + '\n' + r.content
+    };
+    customVersions.push(newRec);
+    saveData('zhijia_custom_versions', customVersions);
+  } else if (targetArr === 'test') {
+    const newRec = {
+      id: Date.now(),
+      brand: r.parsed.brand || 'H',
+      name: r.parsed.brand || '未知品牌',
+      version: r.parsed.version || '',
+      title: r.title,
+      date: r.date || new Date().toISOString().slice(0,10),
+      location: '',
+      vehicle: '',
+      weather: '',
+      mileage: '',
+      score: { city: 0, highway: 0, parking: 0 },
+      scenes: [],
+      highlights: r.content,
+      desc: ''
+    };
+    customTests.push(newRec);
+    saveData('zhijia_custom_tests', customTests);
+  } else if (targetArr === 'issue') {
+    const newRec = {
+      id: Date.now(),
+      brand: r.parsed.brand || 'H',
+      name: r.parsed.brand || '未知品牌',
+      version: r.parsed.version || '',
+      date: r.date || new Date().toISOString().slice(0,10),
+      level: 'P2',
+      category: '其他',
+      desc: r.title + '\n' + r.content,
+      steps: '',
+      frequency: '偶发'
+    };
+    customIssues.push(newRec);
+    saveData('zhijia_custom_issues', customIssues);
+  }
+
+  showToast('已导入到数据采集', 'success');
+  removeScrapeResult(id);
+}
+
+function removeScrapeResult(id) {
+  scrapeResults = scrapeResults.filter(r => r.id !== id);
+  renderScrapeResults();
+}
+
+// ===== 导入/解析功能 =====
+function toggleImportUI() {
+  const type = document.getElementById('import-type')?.value;
+  const fileArea = document.getElementById('import-file-area');
+  const textArea = document.getElementById('import-text-area');
+
+  if (type === 'text') {
+    fileArea.style.display = 'none';
+    textArea.style.display = 'block';
+  } else {
+    fileArea.style.display = '';
+    textArea.style.display = 'none';
+  }
+}
+
+function handleImportFile(file) {
+  if (!file) return;
+  const nameSpan = document.getElementById('import-file-name');
+  nameSpan.textContent = file.name;
+}
+
+function parseImportedText() {
+  const text = document.getElementById('import-text')?.value.trim();
+  if (!text) { showToast('请粘贴网页内容', 'error'); return; }
+
+  const parsed = parseWebContent(text);
+  const container = document.getElementById('import-results');
+  if (!container) return;
+
+  if (parsed.length === 0) {
+    container.innerHTML = `<div class="empty-state" style="padding:30px"><span class="empty-icon">📄</span><p>未识别到有效数据</p><p class="empty-hint">尝试粘贴包含"版本"、"版本号"、"测评"等关键词的内容</p></div>`;
+    return;
+  }
+
+  container.innerHTML = `<div class="records-list">${parsed.map((r, i) => `
+    <div class="record-item">
+      <span class="record-type">${getSourceIcon(r.source)} ${r.type || '其它'}</span>
+      <span class="record-info">${r.brand || '未知'} · ${r.version || ''}</span>
+      <span class="record-date">${r.date || ''}</span>
+      <span class="record-summary">${(r.title || '').slice(0,40)}${(r.title || '').length>40?'...':''}</span>
+      <span class="record-actions">
+        <button class="btn-sm btn-primary" onclick="importParsedResult(${i})">导入</button>
+      </span>
+    </div>
+  `).join('')}</div>`;
+
+  showToast(`识别到 ${parsed.length} 条数据`, 'success');
+}
+
+function parseWebContent(text) {
+  const results = [];
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+
+  for (const line of lines) {
+    if (line.length < 20) continue;
+
+    // Try to identify brand
+    let brand = null;
+    for (const [name, keywords] of Object.entries({
+      '华为ADS': ['华为', 'ADS', '问界', '鸿蒙'],
+      '小鹏XNGP': ['小鹏', 'XNGP', 'G9', 'P7'],
+      '特斯拉FSD': ['特斯拉', 'FSD', 'Model'],
+      '理想AD Max': ['理想', 'AD Max', 'L7', 'L6'],
+      '小米智驾': ['小米', 'SU7', 'Pilot'],
+      '地平线HSD': ['地平线', 'HSD'],
+      '比亚迪': ['比亚迪', 'BYD', '天神之眼']
+    })) {
+      if (keywords.some(k => line.includes(k))) { brand = name; break; }
+    }
+
+    // Try to identify data type
+    let type = 'unknown';
+    if (line.includes('版本') && (line.includes('OTA') || line.includes('推送'))) type = 'ota';
+    else if (line.includes('实测') || line.includes('测评') || line.includes('体验')) type = 'test';
+    else if (line.includes('问题') || line.includes('bug') || line.includes('故障')) type = 'issue';
+    else if (line.includes('新闻') || line.includes('动态') || line.includes('发布')) type = 'news';
+
+    // Try to extract version
+    const versionMatch = line.match(/([A-Za-z]+\s*\d+\.?\d*)/);
+    const version = versionMatch ? versionMatch[1] : '';
+
+    // Try to extract date
+    const dateMatch = line.match(/(\d{4}[-/年]\d{1,2}[-/月]\d{1,2})/);
+    const date = dateMatch ? dateMatch[1].replace(/[-/年]/g, '-') : '';
+
+    if (brand || type !== 'unknown') {
+      results.push({
+        id: Date.now() + Math.random(),
+        source: 'text',
+        type,
+        brand: brand || '',
+        version,
+        date,
+        title: line.slice(0, 50),
+        content: line,
+        parsed: { brand, version }
+      });
+    }
+  }
+
+  return results;
+}
+
+function importParsedResult(index) {
+  const parsed = parseWebContent(document.getElementById('import-text')?.value?.trim())[index];
+  if (!parsed) return;
+
+  // Find the actual data
+  const allText = document.getElementById('import-text')?.value?.trim() || '';
+  const lines = allText.split('\n').map(l => l.trim()).filter(Boolean);
+
+  // Get the corresponding line
+  if (!lines[index]) return;
+  const line = lines[index];
+  const record = parsed;
+
+  // Add to appropriate data array
+  if (record.type === 'ota') {
+    const newRec = {
+      id: Date.now(),
+      brand: record.brand || 'H',
+      name: record.brand || '未知品牌',
+      version: record.version || '',
+      date: record.date || new Date().toISOString().slice(0,10),
+      chip: '',
+      arch: '',
+      features: [],
+      scope: '灰度',
+      riskLevel: '低',
+      desc: line
+    };
+    customVersions.push(newRec);
+    saveData('zhijia_custom_versions', customVersions);
+  } else if (record.type === 'test') {
+    const newRec = {
+      id: Date.now(),
+      brand: record.brand || 'H',
+      name: record.brand || '未知品牌',
+      version: record.version || '',
+      title: record.title,
+      date: record.date || new Date().toISOString().slice(0,10),
+      location: '',
+      vehicle: '',
+      weather: '',
+      mileage: '',
+      score: { city: 0, highway: 0, parking: 0 },
+      scenes: [],
+      highlights: line,
+      desc: ''
+    };
+    customTests.push(newRec);
+    saveData('zhijia_custom_tests', customTests);
+  } else if (record.type === 'issue') {
+    const newRec = {
+      id: Date.now(),
+      brand: record.brand || 'H',
+      name: record.brand || '未知品牌',
+      version: record.version || '',
+      date: record.date || new Date().toISOString().slice(0,10),
+      level: 'P2',
+      category: '其他',
+      desc: line,
+      steps: '',
+      frequency: '偶发'
+    };
+    customIssues.push(newRec);
+    saveData('zhijia_custom_issues', customIssues);
+  }
+
+  showToast('已导入到数据采集', 'success');
+  // Switch to records tab
+  document.querySelector('.collect-tab-main:nth-child(1)')?.click();
+}
+
 function renderRecordsSection(area) {
   const otaN = customVersions.length;
   const testN = customTests.length;
