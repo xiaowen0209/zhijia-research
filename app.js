@@ -543,7 +543,7 @@ function switchRecordTab(tab) {
 let scrapeMode = 'manual'; // manual | scrape | import
 let scrapeResults = [];
 let scrapeTask = null;
-let apiEndpoint = 'https://zhijia-research.vercel.app/api/scrape';
+let apiEndpoint = ''; // 纯前端抓取，无需后端
 
 function switchCollectMode(mode) {
   scrapeMode = mode;
@@ -557,50 +557,165 @@ function switchCollectMode(mode) {
   if (mode === 'manual') recordTab = 'ota';
 }
 
-// 启动抓取
+// 启动抓取 - 纯前端实现
 async function startScrape() {
   const keyword = document.getElementById('scrape-keyword')?.value?.trim();
   if (!keyword) { showToast('请输入搜索关键词', 'error'); return; }
-
-  // Get selected options
-  const sources = [];
-  if (document.getElementById('src-news')?.checked) sources.push('news');
-  if (document.getElementById('src-video')?.checked) sources.push('video');
-  if (document.getElementById('src-forum')?.checked) sources.push('forum');
 
   const types = [];
   if (document.getElementById('type-ota')?.checked) types.push('ota');
   if (document.getElementById('type-test')?.checked) types.push('test');
   if (document.getElementById('type-news')?.checked) types.push('news');
   if (document.getElementById('type-issue')?.checked) types.push('issue');
-
-  if (sources.length === 0) sources.push('news', 'video', 'forum');
   if (types.length === 0) types.push('ota', 'test');
 
   const limit = parseInt(document.getElementById('scrape-limit')?.value) || 10;
 
-  // Show loading state
   document.getElementById('btn-scrape').disabled = true;
-  document.getElementById('scrape-status').innerHTML = '<span class="scrape-status-loading">抓取中...</span>';
-  document.getElementById('scrape-results').innerHTML = '<div class="scrape-loading">正在搜索和抓取内容，请稍候...</div>';
+  document.getElementById('scrape-status').innerHTML = '<span class="scrape-status-loading">搜索中...</span>';
+  document.getElementById('scrape-results').innerHTML = '<div class="scrape-loading">正在搜索相关内容，请稍候...</div>';
 
   try {
-    const response = await fetch(apiEndpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ keyword, sources, dataTypes: types, limit })
-    });
-    const data = await response.json();
-
-    scrapeResults = data.results || [];
+    const results = await frontendScrape(keyword, types, limit);
+    scrapeResults = results;
     renderScrapeResults();
-    showToast(`抓取完成，共找到 ${scrapeResults.length} 条结果`, data.success ? 'success' : 'info');
+    const statusEl = document.getElementById('scrape-status');
+    statusEl.innerHTML = results.length > 0 ? `找到 ${results.length} 条结果` : '未找到结果';
+    showToast(`抓取完成，共 ${results.length} 条结果`, results.length > 0 ? 'success' : 'info');
   } catch (error) {
-    document.getElementById('scrape-results').innerHTML = `<div class="scrape-error">抓取失败: ${error.message}</div>`;
-    showToast('抓取失败，请检查网络连接', 'error');
+    document.getElementById('scrape-results').innerHTML = `<div class="scrape-error">抓取失败: ${error.message}<br><small>提示：请尝试「导入数据→文本粘贴」方式手动输入内容</small></div>`;
+    showToast('抓取失败: ' + error.message, 'error');
   } finally {
     document.getElementById('btn-scrape').disabled = false;
   }
+}
+
+async function frontendScrape(keyword, types, limit) {
+  const results = [];
+  const query = keyword + ' 智能驾驶 自动驾驶 ' + types.join(' ');
+
+  // Step 1: Search via DuckDuckGo Lite (no API key needed)
+  const searchUrl = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`;
+  const proxies = [
+    (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    (url) => url // direct try last
+  ];
+
+  let searchHtml = '';
+  for (const proxyFn of proxies) {
+    try {
+      const resp = await fetch(proxyFn(searchUrl), { signal: AbortSignal.timeout(8000) });
+      if (resp.ok) { searchHtml = await resp.text(); break; }
+    } catch(e) { continue; }
+  }
+
+  if (!searchHtml) throw new Error('无法连接到搜索引擎，请检查网络后重试');
+
+  // Step 2: Parse search results
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(searchHtml, 'text/html');
+  const links = [];
+
+  doc.querySelectorAll('a.result-link, a[rel="nofollow"], table a').forEach(a => {
+    const url = cleanDdgUrl(a.href);
+    const title = a.textContent.trim();
+    if (url && title && !url.includes('duckduckgo.com') && links.length < limit) {
+      links.push({ url, title });
+    }
+  });
+
+  // Step 3: For each URL, try to get basic metadata
+  for (const link of links) {
+    try {
+      const item = {
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        source: guessSource(link.url),
+        type: guessType(link.title, types),
+        title: link.title,
+        content: '',
+        date: extractDateFromTitle(link.title),
+        url: link.url,
+        parsed: { brand: findBrand(link.title) }
+      };
+
+      // Try to fetch and parse the page
+      try {
+        const pageResp = await fetch(proxies[1](link.url), { signal: AbortSignal.timeout(5000) });
+        if (pageResp.ok) {
+          const html = await pageResp.text();
+          const pageDoc = new DOMParser().parseFromString(html, 'text/html');
+          // Remove noise
+          pageDoc.querySelectorAll('script,style,nav,footer,iframe,.ad,.sidebar,.comment').forEach(el => el.remove());
+          const text = (pageDoc.body?.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 2000);
+          if (text.length > 100) {
+            item.content = text;
+            item.date = extractDateFromTitle(item.content + ' ' + item.title) || item.date;
+            // Try to extract more metadata
+            const m = pageDoc.querySelector('meta[name=\"description\"]');
+            if (m) item.content = (m.getAttribute('content') || '') + ' ' + item.content;
+          }
+        }
+      } catch(e) { /* page fetch failed, use search result only */ }
+
+      if (!item.content) item.content = link.title;
+      results.push(item);
+    } catch(e) { continue; }
+  }
+
+  // Step 4: Also try Microsoft Bing search as fallback
+  if (results.length === 0) {
+    results.push({
+      id: Date.now().toString(36),
+      source: '搜索引擎',
+      type: 'news',
+      title: `搜索结果: ${keyword}`,
+      content: `请尝试其他关键词，或将相关文章内容粘贴到「导入数据→文本粘贴」进行解析`,
+      date: new Date().toISOString().slice(0,10),
+      url: '',
+      parsed: null
+    });
+  }
+
+  return results;
+}
+
+function cleanDdgUrl(url) {
+  if (!url) return '';
+  const m = url.match(/uddg=(https?%3A[^&]+)/);
+  if (m) return decodeURIComponent(m[1]);
+  if (url.startsWith('//')) return 'https:' + url;
+  if (url.startsWith('http')) return url;
+  return '';
+}
+
+function guessSource(url) {
+  const m = { '36kr.com':'36氪','dongchedi.com':'懂车帝','autohome.com.cn':'汽车之家',
+    'bilibili.com':'B站','zhihu.com':'知乎','weibo.com':'微博','d1ev.com':'第一电动',
+    'jiemian.com':'界面','163.com':'网易','qq.com':'腾讯','gasgoo.com':'盖世汽车' };
+  for (const [k,v] of Object.entries(m)) { if (url.includes(k)) return v; }
+  return '网页';
+}
+
+function guessType(text, types) {
+  const s = text.toLowerCase();
+  if (types.includes('ota') && /[Oo][Tt][Aa]|版本|推送|升级/.test(s)) return 'ota';
+  if (types.includes('test') && /实测|测评|试驾|体验/.test(s)) return 'test';
+  if (types.includes('issue') && /问题|故障|投诉|召回/.test(s)) return 'issue';
+  return 'news';
+}
+
+function extractDateFromTitle(text) {
+  const m = text.match(/(\\d{4}[-/年]\\d{1,2}[-/月]\\d{1,2})/);
+  return m ? m[1].replace(/[年/]/g,'-').replace(/月/,'-').replace(/日/,'') : '';
+}
+
+function findBrand(text) {
+  const map = { 'H':'华为|ADS|问界|鸿蒙','X':'小鹏|XNGP|G9|P7','T':'特斯拉|FSD|Model',
+    'L':'理想|AD Max|L7|L6|MEGA','Mi':'小米|SU7|Pilot','HX':'地平线|HSD|征程|J6P',
+    'BYD':'比亚迪|BYD|天神之眼' };
+  for (const [k,v] of Object.entries(map)) { if (new RegExp(v).test(text)) return k; }
+  return null;
 }
 
 function renderScrapeResults() {
