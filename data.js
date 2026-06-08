@@ -380,7 +380,6 @@ const GLOSSARY_DATA = [
   // ADAS 基础功能
   { term: "ACC", cat: "ADAS基础", full: "Adaptive Cruise Control", desc: "自适应巡航控制。L1级辅助驾驶功能，自动调整车速以保持与前车的安全距离，是L2+自动驾驶的纵向控制基础。" },
   { term: "LKA", cat: "ADAS基础", full: "Lane Keeping Assist", desc: "车道保持辅助。L1级功能，通过摄像头识别车道线，自动微调方向盘使车辆保持在车道中心。与ACC组合构成L2级基础功能。" },
-  { term: "AEB", cat: "ADAS基础", full: "Automatic Emergency Braking", desc: "自动紧急制动。检测到即将发生碰撞时自动施加制动力，是最重要的主动安全功能之一。各国已将AEB纳入新车评价标准(NCAP)。" },
   { term: "APA", cat: "ADAS基础", full: "Automatic Parking Assist", desc: "自动泊车辅助。通过超声波传感器和摄像头探测车位并自动完成泊车操作。从半自动(驾驶员控制挡位)演进到全自动(一键泊车)和记忆泊车(跨楼层)。" },
 
   // 量产相关
