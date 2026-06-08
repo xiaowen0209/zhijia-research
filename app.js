@@ -1,1144 +1,322 @@
-// ==============================
-// 智驾研究台 - 应用逻辑 v3
-// ==============================
+// ==========================================
+// 智驾研究台 v2
+// ==========================================
 
-// ===== 本地存储 =====
-function loadData(key, fallback) {
-  try { const d = localStorage.getItem(key); return d ? JSON.parse(d) : fallback; }
-  catch { return fallback; }
-}
-function saveData(key, data) {
-  try { localStorage.setItem(key, JSON.stringify(data)); } catch {}
-}
-
-let favorites = loadData('zhijia_favorites', []);
-let customVersions = loadData('zhijia_custom_versions', []);
-let customTests = loadData('zhijia_custom_tests', []);
-let customIssues = loadData('zhijia_custom_issues', []);
-
-// 品牌选项
-const BRAND_OPTIONS = [
-  { key: "H", name: "华为ADS" },
-  { key: "X", name: "小鹏XNGP" },
-  { key: "T", name: "特斯拉FSD" },
-  { key: "L", name: "理想AD Max" },
-  { key: "Mi", name: "小米智驾" },
-  { key: "HX", name: "地平线HSD" },
-  { key: "BYD", name: "比亚迪天神之眼" },
-  { key: "BD", name: "百度Apollo" },
-  { key: "WR", name: "文远知行WeRide" }
-];
+let currentPage = 'home';
+let favs = JSON.parse(localStorage.getItem('z_favs')||'[]');
+let customV = JSON.parse(localStorage.getItem('z_cv')||'[]');
+let customT = JSON.parse(localStorage.getItem('z_ct')||'[]');
+let customI = JSON.parse(localStorage.getItem('z_ci')||'[]');
+let recordTab = 'ota';
+let vfilter = 'all', gcat = 'all';
+let charts = {};
 
 document.addEventListener('DOMContentLoaded', () => {
-  initNavigation();
-  initMobileMenu();
-  renderHomePage();
-  renderCompareTable();
-  renderMatrixTable();
-  renderVersionCenter();
-  renderOTAList();
-  renderTestList();
-  renderGlossary();
-  renderRegulation();
-  renderFavorites();
-  renderCollectPage();
-  window.addEventListener('resize', debounce(() => {
-    if (document.getElementById('page-dataviz').classList.contains('active')) renderCharts();
-  }, 300));
+  document.querySelectorAll('.tn-item').forEach(el => el.addEventListener('click', e => { e.preventDefault(); switchPage(el.dataset.page); }));
+  document.querySelectorAll('.m-menu a').forEach(el => el.addEventListener('click', e => { e.preventDefault(); switchPage(el.dataset.page); toggleMobileMenu(); }));
+  switchPage('home');
 });
 
-function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
-
-// ===== 导航切换 =====
-function initNavigation() {
-  document.querySelectorAll('.nav-item').forEach(item => {
-    item.addEventListener('click', (e) => { e.preventDefault(); switchPage(item.dataset.page); });
-  });
-  document.querySelectorAll('[data-page]').forEach(link => {
-    if (!link.classList.contains('nav-item')) {
-      link.addEventListener('click', (e) => { e.preventDefault(); switchPage(link.dataset.page); });
-    }
-  });
-  document.querySelectorAll('.tag[data-brand]').forEach(tag => {
-    tag.addEventListener('click', () => { switchPage('compare'); highlightBrandRow(tag.dataset.brand); });
-  });
+function toggleMobileMenu() {
+  document.getElementById('m-menu').classList.toggle('open');
+  document.getElementById('m-overlay').classList.toggle('show');
 }
 
-function switchPage(pageName) {
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  const nav = document.querySelector(`.nav-item[data-page="${pageName}"]`);
-  if (nav) nav.classList.add('active');
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  const page = document.getElementById(`page-${pageName}`);
-  if (page) page.classList.add('active');
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-  if (pageName === 'dataviz') setTimeout(renderCharts, 100);
-  if (pageName === 'favorites') renderFavorites();
-  if (pageName === 'versions') renderVersionCenter();
-  if (pageName === 'test') renderTestList();
-  if (pageName === 'collect') renderCollectPage();
-  document.getElementById('mobile-menu')?.classList.remove('open');
-  document.querySelector('.menu-overlay')?.classList.remove('show');
+function switchPage(p) {
+  currentPage = p;
+  document.querySelectorAll('.tn-item').forEach(el => el.classList.toggle('active', el.dataset.page === p));
+  const mc = document.getElementById('main-content');
+  Object.values(charts).forEach(c => { try { c.destroy() } catch {} }); charts = {};
+
+  const pages = {
+    home: renderHome, compare: renderCompare, scenario: renderScenario,
+    versions: renderVersions, glossary: renderGlossary, collect: renderCollect
+  };
+  mc.innerHTML = '<div class="page active" id="page-'+p+'"></div>';
+  if (pages[p]) pages[p]();
+  window.scrollTo(0,0);
 }
 
-function highlightBrandRow(brand) {
+// ===== HOME =====
+function renderHome() {
+  const el = document.getElementById('page-home');
+  if (!el) return;
+  const totalV = VERSION_DATA.length + customV.length;
+  const totalT = TEST_DATA.length + customT.length;
+  const brands = new Set([...VERSION_DATA.map(v=>v.brand), ...SCORE_DATA.map(s=>s.brand)]);
+  const top3 = [...SCORE_DATA].sort((a,b) => ((b.city+b.highway+b.parking)/3) - ((a.city+a.highway+a.parking)/3)).slice(0,3);
+
+  el.innerHTML = `
+    <div class="hero"><h1>智能驾驶方案评测对比</h1><p>7大主流方案 · 8项场景实测 · 15个版本追踪 · 96条专业术语</p></div>
+    <div class="stats-row">
+      <div class="stat-box" onclick="switchPage('compare')"><div class="stat-num">7</div><div class="stat-label">监测方案</div></div>
+      <div class="stat-box" onclick="switchPage('scenario')"><div class="stat-num">8</div><div class="stat-label">测试场景</div></div>
+      <div class="stat-box" onclick="switchPage('versions')"><div class="stat-num">${totalV}</div><div class="stat-label">版本记录</div></div>
+      <div class="stat-box"><div class="stat-num">96</div><div class="stat-label">专业术语</div></div>
+    </div>
+    <div class="section"><div class="section-title">排行速览</div>
+      <div class="rank-list">${top3.map((s,i) => {
+        const avg = ((s.city+s.highway+s.parking)/3).toFixed(1);
+        const posColors = ['#f85149','#d2991d','#58a6ff'];
+        return `<div class="rank-item" onclick="switchPage('compare')" style="cursor:pointer">
+          <div class="rank-pos" style="background:${posColors[i]}">${i+1}</div>
+          <div class="rank-info"><div class="rank-name">${s.name}</div><div style="font-size:12px;color:var(--tx3)">${s.version}</div></div>
+          <div class="rank-avg" style="color:${s.color}">${avg}</div>
+        </div>`;
+      }).join('')}</div>
+    </div>
+    <div class="section"><div class="section-title">最新动态</div>
+      <div class="news-feed">${NEWS_DATA.slice(0,6).map(n => `
+        <div class="news-item">
+          <div class="news-meta"><span>${n.date}</span><span>${n.brandName}</span><span class="news-tag nt-${n.type}">${n.typeLabel}</span></div>
+          <div style="font-weight:600;font-size:14px">${n.title}</div>
+        </div>`).join('')}</div>
+    </div>`;
+}
+
+// ===== COMPARE =====
+function renderCompare() {
+  const el = document.getElementById('page-compare');
+  if (!el) return;
+  // Build PK selector + comparison
+  const brands = SCORE_DATA;
+  const selected = (new URLSearchParams(location.search).get('pk')||'').split(',').filter(Boolean);
+  const pkBrands = selected.length >= 2 ? brands.filter(b => selected.includes(b.brand)) : brands.slice(0,5);
+
+  el.innerHTML = `
+    <h1 style="font-size:24px;font-weight:800;margin-bottom:6px">方案对比</h1>
+    <p style="color:var(--tx2);margin-bottom:20px">选择品牌进行多维度对比</p>
+    <div class="compare-toolbar" id="pk-toolbar">
+      ${brands.map(b => `<button class="pk-chip${selected.includes(b.brand)?' selected':''}" onclick="togglePK('${b.brand}')">${b.name}</button>`).join('')}
+      <button class="pk-action" onclick="applyPK()">开始对比</button>
+    </div>
+    <div class="compare-grid" id="compare-content">
+      <div class="chart-box"><h3>综合雷达图</h3><canvas id="chart-radar"></canvas></div>
+      <div class="chart-box"><h3>场景评分对比</h3><canvas id="chart-bar"></canvas></div>
+    </div>
+    <div style="margin-top:20px">
+      <table class="scenario-table" style="width:100%"><thead><tr><th>方案</th><th>版本</th><th>芯片</th><th>城区</th><th>高速</th><th>泊车</th><th>综合</th></tr></thead>
+        <tbody>${pkBrands.map(b => `<tr><td style="font-weight:600;text-align:left">${b.name}</td><td>${b.version}</td><td>${(VERSION_DATA.find(v=>v.brand===b.brand)||{}).chip||'—'}</td><td style="color:${b.city>=9?'var(--green)':b.city>=8?'var(--orange)':'var(--red)'}">${b.city}</td><td style="color:${b.highway>=9?'var(--green)':b.highway>=8?'var(--orange)':'var(--red)'}">${b.highway}</td><td style="color:${b.parking>=8.5?'var(--green)':b.parking>=7.5?'var(--orange)':'var(--red)'}">${b.parking}</td><td style="font-weight:700">${((b.city+b.highway+b.parking)/3).toFixed(1)}</td></tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+
+  // Chart.js
   setTimeout(() => {
-    document.querySelectorAll('#compare-table tbody tr').forEach(r => r.style.background = '');
-    document.querySelectorAll('#compare-table tbody tr').forEach(r => {
-      if (r.querySelector('td')?.textContent.includes(brand)) {
-        r.style.background = 'rgba(74,144,217,0.1)';
-        r.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
+    if(typeof Chart==='undefined') return;
+    const clr = ['#f85149','#d2991d','#58a6ff','#a371f7','#3fb950','#39d353','#8b949e'];
+    charts.radar = new Chart(document.getElementById('chart-radar'), {
+      type:'radar',data:{labels:['城市场景','高速场景','泊车场景','综合体验'],datasets:pkBrands.map((b,i)=>({label:b.name,data:[b.city,b.highway,b.parking,+((b.city+b.highway+b.parking)/3).toFixed(1)],borderColor:clr[i],backgroundColor:clr[i]+'18',borderWidth:2}))},
+      options:{responsive:true,scales:{r:{min:7,max:10,ticks:{stepSize:1,color:'#8b949e',backdropColor:'transparent'},grid:{color:'#30363d'},pointLabels:{color:'#e6edf3',font:{size:11}}}},plugins:{legend:{labels:{color:'#8b949e',font:{size:11}}}}}
     });
-  }, 50);
+    charts.bar = new Chart(document.getElementById('chart-bar'), {
+      type:'bar',data:{labels:pkBrands.map(b=>b.name),datasets:[{label:'城市场景',data:pkBrands.map(b=>b.city),backgroundColor:'#58a6ff99'},{label:'高速场景',data:pkBrands.map(b=>b.highway),backgroundColor:'#3fb95099'},{label:'泊车场景',data:pkBrands.map(b=>b.parking),backgroundColor:'#d2991d99'}]},
+      options:{responsive:true,scales:{y:{min:7,max:10,grid:{color:'#30363d'},ticks:{color:'#8b949e'}},x:{ticks:{color:'#8b949e'}}},plugins:{legend:{labels:{color:'#8b949e'}}}}
+    });
+  }, 100);
 }
 
-function initMobileMenu() {
-  const btn = document.getElementById('mobile-menu-btn');
-  const menu = document.getElementById('mobile-menu');
-  const overlay = document.querySelector('.menu-overlay');
-  if (!btn || !menu) return;
-  btn.addEventListener('click', () => { menu.classList.toggle('open'); overlay?.classList.toggle('show'); });
-  overlay?.addEventListener('click', () => { menu.classList.remove('open'); overlay.classList.remove('show'); });
-  menu.querySelectorAll('.mobile-nav-item').forEach(item => {
-    item.addEventListener('click', (e) => { e.preventDefault(); switchPage(item.dataset.page); });
-  });
+let pkSelected = [];
+function togglePK(brand) {
+  const i = pkSelected.indexOf(brand);
+  if(i>=0) pkSelected.splice(i,1); else pkSelected.push(brand);
+  document.querySelectorAll('.pk-chip').forEach(el => el.classList.toggle('selected', pkSelected.includes(el.textContent.trim().slice(0,2)) || pkSelected.some(b => SCORE_DATA.find(s=>s.brand===b)?.name === el.textContent.trim())));
+}
+function applyPK() {
+  if(pkSelected.length<2){showToast('请至少选择2个方案','err');return}
+  location.search = '?pk='+pkSelected.join(',');
+  switchPage('compare');
 }
 
-// ===== 首页渲染 =====
-function renderHomePage() {
-  updateHomeStats();
-  renderNews('all');
-  renderScores();
-  renderHomeVersions();
-  renderIssues();
-  initFilterTabs();
-  initSearch();
-}
+// ===== SCENARIO =====
+function renderScenario() {
+  const el = document.getElementById('page-scenario');
+  if (!el) return;
+  const scenes = SCENARIO_DATA;
+  const results = SCENARIO_RESULTS;
+  const brands = SCORE_DATA;
 
-function updateHomeStats() {
-  const statsGrid = document.getElementById('home-stats');
-  if (!statsGrid) return;
-  const versionCount = VERSION_DATA.length + customVersions.length;
-  const testCount = TEST_DATA.length + customTests.length;
-  const brandSet = new Set([...VERSION_DATA.map(v=>v.brand), ...SCORE_DATA.map(s=>s.brand)]);
-  statsGrid.innerHTML = `
-    <div class="stat-card" onclick="switchPage('compare')">
-      <div class="stat-number">${COMPARE_DATA.rows.length}</div><div class="stat-label">监测方案总数</div>
+  el.innerHTML = `
+    <h1 style="font-size:24px;font-weight:800;margin-bottom:6px">场景实测</h1>
+    <p style="color:var(--tx2);margin-bottom:20px">参考懂车帝《懂车智炼场》测试方法论 · 8项场景化测试</p>
+    <div style="overflow-x:auto;margin-bottom:32px">
+      <table class="scenario-table">
+        <thead><tr><th>测试场景</th>${brands.map(b=>`<th><div class="bc-badge" style="background:${b.color};width:24px;height:24px;font-size:10px;display:inline-flex;align-items:center;justify-content:center;color:#fff;border-radius:4px;margin:0 auto">${b.brand}</div></th>`).join('')}</tr></thead>
+        <tbody>
+          ${scenes.map(sc => {
+            const ctag = sc.cat==='高速'?'scat-highway':'scat-urban';
+            return `<tr><td><span class="scat-tag ${ctag}">${sc.cat}</span> ${sc.name}</td>
+              ${brands.map(b => {
+                const r = results.find(r=>r.brand===b.brand);
+                const v = r?.scores[sc.name] || 0;
+                const cls = v>=9?'s-hot':v>=8?'s-warm':'s-cold';
+                return `<td class="${cls}">${v||'—'}</td>`;
+              }).join('')}</tr>`;
+          }).join('')}
+        </tbody>
+      </table>
     </div>
-    <div class="stat-card" onclick="switchPage('versions')">
-      <div class="stat-number">${versionCount}</div><div class="stat-label">版本记录</div>
-    </div>
-    <div class="stat-card" onclick="switchPage('test')">
-      <div class="stat-number">${testCount}</div><div class="stat-label">实测记录</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-number">${brandSet.size}</div><div class="stat-label">活跃品牌数</div>
+    <div class="section"><div class="section-title">场景说明</div>
+      <div class="glossary-grid">${scenes.map(s=>`<div class="glossary-item"><div class="gterm"><span class="scat-tag ${s.cat==='高速'?'scat-highway':'scat-urban'}">${s.cat}</span> ${s.name}</div><div class="gdesc">${s.desc}</div></div>`).join('')}</div>
     </div>`;
 }
 
-// ===== 新闻列表 =====
-function renderNews(filter) {
-  const list = document.getElementById('news-list');
-  if (!list) return;
-  const filtered = filter === 'all' ? NEWS_DATA : NEWS_DATA.filter(n => n.type === filter);
-  list.innerHTML = filtered.map(news => `
-    <div class="news-card" data-type="${news.type}" data-id="${news.id}">
-      <div class="news-meta">
-        <span class="news-date">${news.date}</span>
-        <span class="news-brand" style="background:${BRAND_COLORS[news.brand] || '#555'}">${news.brand}</span>
-        <span class="news-brand-name">${news.brandName}</span>
-        <span class="news-type type-${news.type}">${news.typeLabel}</span>
-        <span class="news-favorite ${favorites.includes(news.id) ? 'active' : ''}" onclick="toggleFavorite(${news.id}, this)" title="收藏">
-          ${favorites.includes(news.id) ? '★' : '☆'}
-        </span>
-      </div>
-      <div class="news-title">${news.title}</div>
-      <div class="news-summary">${news.summary}</div>
+// ===== VERSIONS =====
+function renderVersions() {
+  const el = document.getElementById('page-versions');
+  if (!el) return;
+  const all = [...VERSION_DATA, ...customV].sort((a,b)=>b.date.localeCompare(a.date));
+  const brands = [...new Set(all.map(v=>v.brand))];
+  const filtered = vfilter==='all'?all:all.filter(v=>v.brand===vfilter);
+
+  el.innerHTML = `
+    <h1 style="font-size:24px;font-weight:800;margin-bottom:6px">版本中心</h1>
+    <p style="color:var(--tx2);margin-bottom:20px">各品牌OTA版本更新记录 · 按品牌筛选</p>
+    <div class="vfilter">
+      <button class="vchip${vfilter==='all'?' active':''}" onclick="setVFilter('all')">全部 (${all.length})</button>
+      ${brands.map(b=>`<button class="vchip${vfilter===b?' active':''}" onclick="setVFilter('${b}')">${BRAND_OPTIONS.find(o=>o.key===b)?.name||b}</button>`).join('')}
     </div>
-  `).join('');
-}
-
-function toggleFavorite(id, el) {
-  event?.stopPropagation();
-  const idx = favorites.indexOf(id);
-  if (idx >= 0) { favorites.splice(idx, 1); el?.classList.remove('active'); if (el) el.textContent = '☆'; }
-  else { favorites.push(id); el?.classList.add('active'); if (el) el.textContent = '★'; }
-  saveData('zhijia_favorites', favorites);
-}
-
-function initFilterTabs() {
-  document.querySelectorAll('.filter-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      renderNews(tab.dataset.filter);
-    });
-  });
-}
-
-function initSearch() {
-  const input = document.getElementById('global-search');
-  if (!input) return;
-  let dt;
-  input.addEventListener('input', () => {
-    clearTimeout(dt);
-    dt = setTimeout(() => {
-      const q = input.value.toLowerCase().trim();
-      if (!q) { renderNews(document.querySelector('.filter-tab.active')?.dataset.filter || 'all'); return; }
-      document.querySelectorAll('.news-card').forEach(c => {
-        c.style.display = c.textContent.toLowerCase().includes(q) ? '' : 'none';
-      });
-    }, 200);
-  });
-}
-
-// ===== 评分卡片 =====
-function renderScores() {
-  const grid = document.getElementById('score-grid');
-  if (!grid) return;
-  grid.innerHTML = SCORE_DATA.map(s => {
-    const avg = ((s.city + s.highway + s.parking) / 3).toFixed(1);
-    return `<div class="score-card" onclick="switchPage('compare')" style="cursor:pointer">
-      <div class="score-header">
-        <span class="score-brand-badge" style="background:${s.color}">${s.brand}</span>
-        <div><div class="score-name">${s.name}</div><div class="score-version">${s.version}</div></div>
-        <div class="score-avg"><span class="score-avg-value" style="color:${s.color}">${avg}</span><span class="score-avg-label">综合</span></div>
-      </div>
-      <div class="score-items">
-        ${scoreItem('城市场景',s.city,s.color)}${scoreItem('高速场景',s.highway,s.color)}${scoreItem('泊车场景',s.parking,s.color)}
-      </div></div>`;
-  }).join('');
-}
-function scoreItem(l,v,c) {
-  const p = ((v-5)/5)*100;
-  return `<div class="score-item"><span class="score-item-label">${l}</span><div class="score-bar-bg"><div class="score-bar" style="width:${p}%;background:${c}"></div></div><span class="score-item-value" style="color:${c}">${v}</span></div>`;
-}
-
-// ===== 首页版本列表（简要） =====
-function renderHomeVersions() {
-  const list = document.getElementById('version-list');
-  if (!list) return;
-  const all = [...VERSION_DATA, ...customVersions].sort((a,b) => b.date.localeCompare(a.date));
-  list.innerHTML = all.slice(0, 6).map(v => `
-    <div class="version-card">
-      <span class="version-badge" style="background:${BRAND_COLORS[v.brand] || '#555'}">${v.brand}</span>
-      <div class="version-info"><div class="version-name">${v.name} · ${v.version}</div><div class="version-detail">${v.desc}</div></div>
-      <span class="version-date">${v.date}</span>
-    </div>
-  `).join('');
-}
-
-// ===== 问题列表 =====
-function renderIssues() {
-  const list = document.getElementById('issue-list');
-  if (!list) return;
-  const all = [...ISSUE_DATA, ...customIssues];
-  list.innerHTML = all.map(i => `
-    <div class="issue-card">
-      <span class="issue-badge" style="background:${BRAND_COLORS[i.brand] || '#555'}">${i.brand}</span>
-      <span class="issue-level level-${(i.level||'').toLowerCase()}">${i.level}</span>
-      <div class="issue-info"><span class="issue-name">${i.name}</span><span class="issue-desc">${i.desc}</span></div>
-      <span class="issue-date">${i.date}</span>
-    </div>
-  `).join('');
-}
-
-// ============================================================
-// ===== 版本中心 — 品牌分组 =====
-// ============================================================
-let versionFilter = 'all';
-
-function renderVersionCenter() {
-  const tabsEl = document.getElementById('version-brand-tabs');
-  const groupsEl = document.getElementById('version-groups');
-  const statsEl = document.getElementById('version-stats');
-  if (!tabsEl || !groupsEl) return;
-
-  const all = [...VERSION_DATA, ...customVersions].sort((a,b) => b.date.localeCompare(a.date));
-
-  // 计算品牌统计
-  const brandCounts = {};
-  all.forEach(v => { brandCounts[v.brand] = (brandCounts[v.brand] || 0) + 1; });
-  const uniqueBrands = [...new Set(all.map(v => v.brand))];
-
-  // 品牌筛选行
-  tabsEl.innerHTML = `<button class="vtab ${versionFilter==='all'?'active':''}" onclick="filterVersionBrand('all')">全部 <span class="vtab-badge">${all.length}</span></button>` +
-    uniqueBrands.map(b => {
-      const info = BRAND_OPTIONS.find(o => o.key === b) || { name: b };
-      return `<button class="vtab ${versionFilter===b?'active':''}" onclick="filterVersionBrand('${b}')">
-        <span class="vtab-dot" style="background:${BRAND_COLORS[b]||'#555'}"></span>${info.name} <span class="vtab-badge">${brandCounts[b]}</span>
-      </button>`;
-    }).join('');
-
-  // 过滤
-  const filtered = versionFilter === 'all' ? all : all.filter(v => v.brand === versionFilter);
-
-  // 按品牌分组
-  const groups = {};
-  filtered.forEach(v => {
-    if (!groups[v.brand]) groups[v.brand] = [];
-    groups[v.brand].push(v);
-  });
-
-  // 渲染分组
-  groupsEl.innerHTML = Object.entries(groups).map(([brand, versions]) => {
-    const info = BRAND_OPTIONS.find(o => o.key === brand) || { name: brand };
-    const color = BRAND_COLORS[brand] || '#555';
-    return `
-      <div class="version-group">
-        <div class="version-group-header">
-          <span class="vg-color-bar" style="background:${color}"></span>
-          <span class="vg-brand-badge" style="background:${color}">${brand}</span>
-          <span class="vg-name">${info.name}</span>
-          <span class="vg-count">${versions.length} 个版本</span>
+    <div>${filtered.map(v=>`
+      <div class="vdetail">
+        <div class="vd-top">
+          <span class="bc-badge" style="background:${BRAND_COLORS[v.brand]};width:24px;height:24px;font-size:10px">${v.brand}</span>
+          <span class="vd-ver" style="color:${BRAND_COLORS[v.brand]}">${v.version}</span>
+          <span class="vd-scope vs-${(v.scope||'').includes('全量')?'full':(v.scope||'').includes('灰度')||(v.scope||'').includes('分批')?'gray':'plan'}">${v.scope}</span>
+          <span class="vd-risk vr-${(v.riskLevel||'').includes('高')?'high':(v.riskLevel||'').includes('中')?'mid':'low'}">${v.riskLevel}风险</span>
+          <span style="margin-left:auto;font-size:12px;color:var(--tx3)">${v.date}</span>
         </div>
-        <div class="version-group-list">
-          ${versions.map(v => renderVersionDetailCard(v, color)).join('')}
-        </div>
-      </div>`;
-  }).join('');
-
-  // 统计
-  if (statsEl) {
-    const months = {};
-    all.forEach(v => { const m = v.date.slice(0,7); months[m] = (months[m]||0)+1; });
-    statsEl.innerHTML = `
-      <div class="vstats"><span class="vstats-num">${all.length}</span><span class="vstats-label">总版本数</span></div>
-      <div class="vstats"><span class="vstats-num">${uniqueBrands.length}</span><span class="vstats-label">品牌数</span></div>
-      <div class="vstats"><span class="vstats-num">${Object.keys(months).length}</span><span class="vstats-label">覆盖月份</span></div>
-      <div class="vstats-months">${Object.entries(months).sort((a,b)=>b[0].localeCompare(a[0])).map(([m,c]) =>
-        `<span class="vstats-month">${m} <b>${c}</b></span>`).join('')}</div>
-    `;
-  }
+        ${v.chip?`<div class="vd-meta">芯片: ${v.chip} · 架构: ${v.arch||''}</div>`:''}
+        ${(v.features||[]).length?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">${v.features.map(f=>`<span style="padding:2px 8px;border-radius:4px;font-size:11px;background:rgba(255,255,255,.04);color:var(--tx2);border:1px solid var(--border)">${f}</span>`).join('')}</div>`:''}
+        <div style="font-size:13px;color:var(--tx2)">${v.desc}</div>
+      </div>`).join('')}</div>`;
 }
+function setVFilter(f) { vfilter = f; renderVersions(); }
 
-function renderVersionDetailCard(v, color) {
-  const scopeClass = (v.scope||'').includes('全量') ? 'scope-full' :
-                     (v.scope||'').includes('灰度') || (v.scope||'').includes('分批') ? 'scope-gray' :
-                     (v.scope||'').includes('内测') ? 'scope-beta' : 'scope-plan';
-  const riskClass = (v.riskLevel||'').includes('高') ? 'risk-high' :
-                    (v.riskLevel||'').includes('中') ? 'risk-mid' : 'risk-low';
-  const features = v.features || [];
-  return `
-    <div class="vdetail-card">
-      <div class="vdetail-top">
-        <span class="vdetail-version" style="color:${color}">${v.version}</span>
-        <span class="vdetail-scope ${scopeClass}">${v.scope || '未知'}</span>
-        <span class="vdetail-risk ${riskClass}">${v.riskLevel || '低'}风险</span>
-        <span class="vdetail-date">${v.date}</span>
-      </div>
-      ${(v.chip || v.arch) ? `<div class="vdetail-meta">
-        ${v.chip ? `<span>${v.chip}</span>` : ''}
-        ${v.arch ? `<span>${v.arch}</span>` : ''}
-      </div>` : ''}
-      ${features.length ? `<div class="vdetail-features">${features.map(f => `<span class="vdetail-tag">${f}</span>`).join('')}</div>` : ''}
-      <div class="vdetail-desc">${v.desc}</div>
-    </div>`;
-}
-
-function filterVersionBrand(brand) {
-  versionFilter = brand;
-  renderVersionCenter();
-}
-
-// ===== 对比表格 =====
-function renderCompareTable() {
-  const table = document.getElementById('compare-table');
-  if (!table) return;
-  const h = COMPARE_DATA.headers;
-  const bc = {'华为ADS':'#e53935','小鹏XNGP':'#ff9800','特斯拉FSD':'#1565c0','理想AD Max':'#7b1fa2','小米智驾':'#ff6f00','地平线HSD':'#2e7d32','比亚迪天神之眼':'#00838f','百度Apollo':'#0277bd','文远知行WeRide':'#6a1b9a'};
-  table.innerHTML = `<thead><tr>${h.map(th=>`<th>${th}</th>`).join('')}</tr></thead>
-    <tbody>${COMPARE_DATA.rows.map(row=>{
-      const c=bc[row[0]]||'#555';
-      return `<tr>${row.map((cell,i)=>`<td>${i===0?`<span class="cell-brand" style="border-left:3px solid ${c};padding-left:8px"><strong>${cell}</strong></span>`:cell}</td>`).join('')}</tr>`;
-    }).join('')}</tbody>`;
-}
-
-// ===== 功能矩阵 =====
-function renderMatrixTable() {
-  const table = document.getElementById('matrix-table');
-  if (!table) return;
-  const f = MATRIX_DATA.features, s = MATRIX_DATA.solutions;
-  table.innerHTML = `<thead><tr><th>功能 \\ 方案</th>${s.map(x=>`<th>${x.name}</th>`).join('')}</tr></thead>
-    <tbody>${f.map((fi,di)=>`<tr><td class="matrix-feature"><strong>${fi}</strong></td>${s.map(x=>`<td class="${x.checks[di]?'check-yes':'check-no'}">${x.checks[di]?'✅':'—'}</td>`).join('')}</tr>`).join('')}</tbody>
-    <tfoot><tr><td><strong>支持数</strong></td>${s.map(x=>`<td class="matrix-count">${x.checks.filter(Boolean).length}/${x.checks.length}</td>`).join('')}</tr></tfoot>`;
-}
-
-// ===== OTA列表 =====
-function renderOTAList() {
-  const container = document.getElementById('ota-list');
-  if (!container) return;
-  container.innerHTML = OTA_DATA.map(o => {
-    const cn = parseInt(o.coverage)||0;
-    const sc = o.status.includes('全量')?'status-done':o.status.includes('灰度')||o.status.includes('分批')?'status-pushing':o.status.includes('新')?'status-new':'status-partial';
-    return `<div class="ota-card">
-      <div class="ota-header"><div class="ota-brand-info"><span class="version-badge" style="background:${BRAND_COLORS[o.brand]||'#555'}">${o.brand}</span><strong>${o.name}</strong></div>
-      <span class="ota-status ${sc}">${o.status}</span></div>
-      <div class="ota-version-row"><span><span class="ota-version-label">当前：</span><span class="ota-version-value">${o.currentVersion}</span></span><span><span class="ota-version-label">最新：</span><span class="ota-version-value">${o.latestVersion}</span></span></div>
-      <div class="ota-progress"><div class="ota-progress-bar"><div class="ota-progress-fill" style="width:${cn}%;background:linear-gradient(90deg,${BRAND_COLORS[o.brand]||'var(--accent-blue)'},${BRAND_COLORS[o.brand]||'var(--accent-blue)'}88)"></div></div></div>
-      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted)"><span>覆盖率：${o.coverage}</span><span>预计：${o.expectedDate}</span></div></div>`;
-  }).join('');
-}
-
-// ===== 实测列表 =====
-function renderTestList() {
-  const container = document.getElementById('test-list');
-  if (!container) return;
-  const allTests = [...TEST_DATA, ...customTests];
-  container.innerHTML = allTests.map(t => `
-    <div class="test-card">
-      <div class="test-header"><div class="test-title">${t.title}</div><span class="version-badge" style="background:${BRAND_COLORS[t.brand]||'#555'};width:30px;height:30px;font-size:12px">${t.brand}</span></div>
-      <div class="test-meta"><span>${t.date}</span><span>地点: ${t.location||''}</span><span>车型: ${t.vehicle||''}</span>${t.weather?`<span>天气: ${t.weather}</span>`:''}${t.mileage?`<span>里程: ${t.mileage}km</span>`:''}</div>
-      ${t.scenes?.length ? `<div class="test-scenes">${t.scenes.map(s=>`<span class="test-scene-tag">${s}</span>`).join('')}</div>` : ''}
-      <div class="test-scores">
-        ${testScore('城区',t.score?.city,'#4a90d9')}${testScore('高速',t.score?.highway,'#3d9970')}${testScore('泊车',t.score?.parking,'#ff9800')}
-      </div>
-      <div class="test-highlights">${t.highlights||t.desc||''}</div>
-    </div>`).join('');
-}
-function testScore(l,v,c) {
-  if (!v) return '';
-  const p=((v-5)/5)*100;
-  return `<div class="test-score-item"><div class="test-score-value" style="color:${c}">${v}</div><div class="test-score-label">${l}</div><div class="test-score-bar"><div class="test-score-fill" style="width:${p}%;background:${c}"></div></div></div>`;
-}
-
-// ===== 术语百科 =====
-let glossaryCat = 'all';
-
+// ===== GLOSSARY =====
 function renderGlossary() {
-  const c = document.getElementById('glossary-list');
-  if (!c) return;
-  const cats = [...new Set(GLOSSARY_DATA.map(g => g.cat).filter(Boolean))].sort();
-  const filtered = glossaryCat === 'all' ? GLOSSARY_DATA : GLOSSARY_DATA.filter(g => g.cat === glossaryCat);
-  const catCounts = {};
-  GLOSSARY_DATA.forEach(g => { catCounts[g.cat] = (catCounts[g.cat]||0)+1; });
+  const el = document.getElementById('page-glossary');
+  if (!el) return;
+  const cats = [...new Set(GLOSSARY_DATA.map(g=>g.cat).filter(Boolean))].sort();
+  const filtered = gcat==='all'?GLOSSARY_DATA:GLOSSARY_DATA.filter(g=>g.cat===gcat);
+  const counts = {}; GLOSSARY_DATA.forEach(g=>{counts[g.cat]=(counts[g.cat]||0)+1});
 
-  c.innerHTML = `
-    <div class="glossary-search"><input type="text" id="glossary-search-input" placeholder="搜索术语..." oninput="filterGlossary(this.value)" /></div>
+  el.innerHTML = `
+    <h1 style="font-size:24px;font-weight:800;margin-bottom:6px">术语百科</h1>
+    <p style="color:var(--tx2);margin-bottom:20px">${GLOSSARY_DATA.length}条智能驾驶专业术语 · 18类分类筛选</p>
+    <div class="glossary-search"><input type="text" placeholder="搜索术语..." oninput="filterGlossary(this.value)"/></div>
     <div class="glossary-cats">
-      <button class="gcat ${glossaryCat==='all'?'active':''}" onclick="switchGlossaryCat('all')">全部 <span class="gcat-n">${GLOSSARY_DATA.length}</span></button>
-      ${cats.map(cat => `<button class="gcat ${glossaryCat===cat?'active':''}" onclick="switchGlossaryCat('${cat}')">${cat} <span class="gcat-n">${catCounts[cat]}</span></button>`).join('')}
+      <button class="gcat${gcat==='all'?' active':''}" onclick="setGCat('all')">全部</button>
+      ${cats.map(c=>`<button class="gcat${gcat===c?' active':''}" onclick="setGCat('${c}')">${c} <span style="font-size:10px;opacity:.6">${counts[c]}</span></button>`).join('')}
     </div>
-    <div class="glossary-grid" id="glossary-grid">
-      ${filtered.map(g => `
-        <div class="glossary-item" data-term="${g.term.toLowerCase()} ${g.full.toLowerCase()}" data-cat="${g.cat||''}">
-          <div class="glossary-term"><span class="glossary-cat-tag">${g.cat||''}</span>${g.term}</div>
-          <div class="glossary-full">${g.full}</div>
-          <div class="glossary-desc">${g.desc}</div>
-        </div>`).join('')}
-    </div>`;
+    <div class="glossary-grid" id="glossary-grid">${filtered.map(g=>`
+      <div class="glossary-item" data-term="${g.term.toLowerCase()} ${g.full.toLowerCase()}">
+        <div class="gterm"><span class="gcat-tag">${g.cat||''}</span>${g.term}</div>
+        <div class="gfull">${g.full}</div>
+        <div class="gdesc">${g.desc}</div>
+      </div>`).join('')}</div>`;
 }
-
-function switchGlossaryCat(cat) {
-  glossaryCat = cat;
-  renderGlossary();
-}
-
+function setGCat(c) { gcat = c; renderGlossary(); }
 function filterGlossary(q) {
   const s = q.toLowerCase().trim();
-  document.querySelectorAll('.glossary-item').forEach(i => {
-    i.style.display = !s || i.dataset.term.includes(s) ? '' : 'none';
-  });
+  document.querySelectorAll('.glossary-item').forEach(el => { el.style.display = !s||el.dataset.term.includes(s) ? '' : 'none'; });
 }
 
-// ===== 法规标准 =====
-function renderRegulation() {
-  const c = document.getElementById('regulation-list');
-  if (!c) return;
-  c.innerHTML = REGULATION_DATA.map(r => {
-    const sc = r.status==='施行中'||r.status==='已实施'?'status-active':r.status==='征求意见'?'status-draft':'status-published';
-    return `<div class="regulation-card"><div class="regulation-header"><div class="regulation-title">${r.title}</div><span class="regulation-status ${sc}">${r.status}</span></div>
-      <div class="regulation-meta">${r.date} · ${r.org}</div><div class="regulation-desc">${r.desc}</div></div>`;
-  }).join('');
-}
-
-// ============================================================
-// ===== 数据采集 — 完整系统 =====
-// ============================================================
-let editingRecord = null; // { type, id }
-let recordTab = 'ota';
-
-function renderCollectPage() {
-  const formArea = document.getElementById('collect-form-area');
-  const recordsArea = document.getElementById('collect-records-area');
-  const actionsArea = document.getElementById('collect-actions-area');
-  if (!formArea) return;
-
-  const brandOpts = BRAND_OPTIONS.map(o => `<option value="${o.key}">${o.name}</option>`).join('');
+// ===== COLLECT =====
+function renderCollect() {
+  const el = document.getElementById('page-collect');
+  if (!el) return;
+  const brandOpts = BRAND_OPTIONS.map(o=>`<option value="${o.key}">${o.name}</option>`).join('');
   const today = new Date().toISOString().slice(0,10);
+  const tabs = {ota:'OTA录入',test:'实测录入',issue:'问题录入'};
 
-  formArea.innerHTML = `
-    <div class="collect-tabs">
-      <button class="collect-tab ${recordTab==='ota'?'active':''}" onclick="switchRecordTab('ota')">OTA录入</button>
-      <button class="collect-tab ${recordTab==='test'?'active':''}" onclick="switchRecordTab('test')">实测录入</button>
-      <button class="collect-tab ${recordTab==='issue'?'active':''}" onclick="switchRecordTab('issue')">问题录入</button>
-    </div>
-
-    <!-- OTA表单 -->
-    <div id="ota-form" class="collect-form ${recordTab==='ota'?'active':''}">
-      <input type="hidden" id="ota-edit-id" value="" />
-      <div class="form-row"><label>品牌 *</label><select id="f-brand"><option value="">请选择</option>${brandOpts}</select></div>
-      <div class="form-row"><label>版本号 *</label><input type="text" id="f-version" placeholder="如 ADS 5.0" /></div>
-      <div class="form-row"><label>日期</label><input type="date" id="f-date" value="${today}" /></div>
-      <div class="form-row"><label>芯片方案</label><input type="text" id="f-chip" placeholder="如 昇腾610" /></div>
-      <div class="form-row"><label>架构</label><input type="text" id="f-arch" placeholder="如 GOD+PDP" /></div>
-      <div class="form-row"><label>推送范围</label><select id="f-scope"><option value="全量">全量</option><option value="灰度">灰度</option><option value="内测">内测</option><option value="计划中">计划中</option></select></div>
-      <div class="form-row"><label>风险等级</label><select id="f-risk"><option value="低">低</option><option value="中">中</option><option value="高">高</option></select></div>
-      <div class="form-row"><label>核心功能（每行一个）</label><textarea id="f-features" rows="3" placeholder="城区L4级自动驾驶&#10;高速L3有条件自动驾驶"></textarea></div>
-      <div class="form-row"><label>备注</label><textarea id="f-notes" rows="2" placeholder="补充说明"></textarea></div>
-      <div class="form-actions"><button class="btn-primary" onclick="submitOTA()">提交</button><button class="btn-secondary" onclick="resetForm('ota')">重置</button></div>
-    </div>
-
-    <!-- 实测表单 -->
-    <div id="test-form" class="collect-form ${recordTab==='test'?'active':''}">
-      <input type="hidden" id="test-edit-id" value="" />
-      <div class="form-row"><label>品牌 *</label><select id="t-brand"><option value="">请选择</option>${brandOpts}</select></div>
-      <div class="form-row"><label>版本号 *</label><input type="text" id="t-version" placeholder="测试版本号" /></div>
-      <div class="form-row"><label>日期</label><input type="date" id="t-date" value="${today}" /></div>
-      <div class="form-row form-row-2"><div><label>地点</label><input type="text" id="t-location" placeholder="如 深圳南山" /></div><div><label>车型</label><input type="text" id="t-vehicle" placeholder="如 问界M9" /></div></div>
-      <div class="form-row form-row-2"><div><label>天气</label><select id="t-weather"><option value="晴">晴</option><option value="阴">阴</option><option value="雨">雨</option><option value="雪">雪</option><option value="雾">雾</option></select></div><div><label>测试里程(km)</label><input type="number" id="t-mileage" placeholder="50" min="0" /></div></div>
-      <div class="form-row form-row-3"><div><label>城区评分</label><input type="number" id="t-city" min="1" max="10" step="0.1" placeholder="8.5" /></div><div><label>高速评分</label><input type="number" id="t-highway" min="1" max="10" step="0.1" placeholder="9.0" /></div><div><label>泊车评分</label><input type="number" id="t-parking" min="1" max="10" step="0.1" placeholder="8.0" /></div></div>
-      <div class="form-row"><label>测试场景（逗号分隔）</label><input type="text" id="t-scenes" placeholder="城区NOA,施工路段,无保护左转" /></div>
-      <div class="form-row"><label>测试亮点</label><textarea id="t-highlights" rows="3" placeholder="核心发现"></textarea></div>
-      <div class="form-row"><label>发现问题</label><textarea id="t-issues" rows="2" placeholder="发现的缺陷"></textarea></div>
-      <div class="form-actions"><button class="btn-primary" onclick="submitTest()">提交</button><button class="btn-secondary" onclick="resetForm('test')">重置</button></div>
-    </div>
-
-    <!-- 问题表单 -->
-    <div id="issue-form" class="collect-form ${recordTab==='issue'?'active':''}">
-      <input type="hidden" id="issue-edit-id" value="" />
-      <div class="form-row"><label>品牌 *</label><select id="i-brand"><option value="">请选择</option>${brandOpts}</select></div>
-      <div class="form-row"><label>版本号 *</label><input type="text" id="i-version" placeholder="问题所在版本" /></div>
-      <div class="form-row"><label>日期</label><input type="date" id="i-date" value="${today}" /></div>
-      <div class="form-row form-row-2"><div><label>严重等级</label><select id="i-level"><option value="P0">P0 - 严重</option><option value="P1">P1 - 重要</option><option value="P2">P2 - 一般</option></select></div><div><label>问题分类</label><select id="i-category"><option value="感知">感知</option><option value="决策">决策</option><option value="规划">规划</option><option value="控制">控制</option><option value="其他">其他</option></select></div></div>
-      <div class="form-row"><label>问题描述 *</label><textarea id="i-desc" rows="3" placeholder="详细描述问题现象"></textarea></div>
-      <div class="form-row"><label>复现步骤</label><textarea id="i-steps" rows="2" placeholder="如何复现此问题"></textarea></div>
-      <div class="form-row"><label>出现频率</label><select id="i-freq"><option value="偶发">偶发</option><option value="经常">经常</option><option value="必现">必现</option></select></div>
-      <div class="form-actions"><button class="btn-primary" onclick="submitIssue()">提交</button><button class="btn-secondary" onclick="resetForm('issue')">重置</button></div>
-    </div>
-  `;
-
-  // 已提交记录区
-  if (recordsArea) {
-    renderRecordsSection(recordsArea);
-  }
-
-  // 导出/导入区
-  if (actionsArea) {
-    renderActionsSection(actionsArea);
-  }
+  el.innerHTML = `
+    <h1 style="font-size:24px;font-weight:800;margin-bottom:6px">数据采集</h1>
+    <p style="color:var(--tx2);margin-bottom:20px">手动录入 + 文本导入</p>
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      ${Object.entries(tabs).map(([k,v])=>`<button class="btn${recordTab===k?' btn-p':' btn-s'}" onclick="recordTab='${k}';renderCollect()">${v}</button>`).join('')}
+      <button class="btn${recordTab==='import'?' btn-p':' btn-s'}" onclick="recordTab='import';renderCollect()">文本导入</button>
+    </div>` +
+    (recordTab==='import' ? `
+    <div class="collect-form">
+      <p style="color:var(--tx2);font-size:13px;margin-bottom:12px">在 36氪、懂车帝、汽车之家、知乎 等网站复制智能驾驶相关文章内容，粘贴到下方即可自动提取品牌、版本、日期等信息</p>
+      <div class="form-row"><textarea id="import-text" rows="12" placeholder="粘贴网页文章内容..."></textarea></div>
+      <button class="btn btn-p" onclick="parseImport()">解析并导入</button>
+      <div id="import-results" style="margin-top:16px"></div>
+    </div>` : `
+    <div class="collect-form">
+      ${recordTab==='ota'?`
+        <div class="form-row"><label>品牌 *</label><select id="f-brand">${brandOpts}</select></div>
+        <div class="form-row"><label>版本号 *</label><input type="text" id="f-version" placeholder="如 ADS 5.0"/></div>
+        <div class="form-row"><label>日期</label><input type="date" id="f-date" value="${today}"/></div>
+        <div class="form-row"><label>芯片方案</label><input type="text" id="f-chip" placeholder="如 昇腾610"/></div>
+        <div class="form-row"><label>架构</label><input type="text" id="f-arch" placeholder="如 GOD+PDP"/></div>
+        <div class="form-row"><label>推送范围</label><select id="f-scope"><option>全量</option><option>灰度</option><option>内测</option><option>计划中</option></select></div>
+        <div class="form-row"><label>核心功能（每行一个）</label><textarea id="f-features" rows="3"></textarea></div>
+        <div class="form-row"><label>备注</label><textarea id="f-notes" rows="2"></textarea></div>
+      `:recordTab==='test'?`
+        <div class="form-row"><label>品牌 *</label><select id="t-brand">${brandOpts}</select></div>
+        <div class="form-row"><label>测试标题 *</label><input type="text" id="t-title" placeholder="如 华为ADS 5.0 城区实测"/></div>
+        <div class="form-row"><label>日期</label><input type="date" id="t-date" value="${today}"/></div>
+        <div class="form-row form-row-2"><div><label>地点</label><input type="text" id="t-location"/></div><div><label>车型</label><input type="text" id="t-vehicle"/></div></div>
+        <div class="form-row form-row-2"><div><label>城区评分</label><input type="number" id="t-city" min="1" max="10" step="0.1"/></div><div><label>高速评分</label><input type="number" id="t-highway" min="1" max="10" step="0.1"/></div><div><label>泊车评分</label><input type="number" id="t-parking" min="1" max="10" step="0.1"/></div></div>
+        <div class="form-row"><label>测试场景（逗号分隔）</label><input type="text" id="t-scenes" placeholder="城区NOA,施工路段,无保护左转"/></div>
+        <div class="form-row"><label>测试亮点</label><textarea id="t-highlights" rows="3"></textarea></div>
+      `:`
+        <div class="form-row"><label>品牌 *</label><select id="i-brand">${brandOpts}</select></div>
+        <div class="form-row"><label>问题描述 *</label><textarea id="i-desc" rows="3" placeholder="详细描述问题现象"></textarea></div>
+        <div class="form-row form-row-2"><div><label>严重等级</label><select id="i-level"><option>P0</option><option>P1</option><option>P2</option></select></div><div><label>问题分类</label><select id="i-cat"><option>感知</option><option>决策</option><option>规划</option><option>控制</option><option>其他</option></select></div></div>
+        <div class="form-row"><label>日期</label><input type="date" id="i-date" value="${today}"/></div>
+      `}
+      <button class="btn btn-p" onclick="submitForm()" style="margin-top:8px">提交</button>
+    </div>`);
 }
 
-function switchRecordTab(tab) {
-  recordTab = tab;
-  document.querySelectorAll('.collect-tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.collect-form').forEach(f => f.classList.remove('active'));
-  event?.target?.classList.add('active');
-  const form = document.getElementById(tab + '-form');
-  if (form) form.classList.add('active');
-}
-
-// ===== 网页抓取功能 =====
-let scrapeMode = 'manual';
-
-function switchCollectMode(mode) {
-  scrapeMode = mode;
-  document.querySelectorAll('.collect-tab-main').forEach(t => t.classList.remove('active'));
-  event?.target?.classList.add('active');
-  document.getElementById('collect-manual').classList.toggle('active', mode === 'manual');
-  document.getElementById('collect-import').classList.toggle('active', mode === 'import');
-  if (mode === 'manual') recordTab = 'ota';
-}
-// ===== 导入/解析功能 =====
-function toggleImportUI() {
-  const type = document.getElementById('import-type')?.value;
-  const fileArea = document.getElementById('import-file-area');
-  const textArea = document.getElementById('import-text-area');
-
-  if (type === 'text') {
-    fileArea.style.display = 'none';
-    textArea.style.display = 'block';
+function submitForm() {
+  if(recordTab==='ota'){
+    const v = document.getElementById('f-version')?.value.trim();
+    if(!v){showToast('请填写版本号','err');return}
+    customV.push({id:Date.now(),brand:document.getElementById('f-brand').value,name:BRAND_OPTIONS.find(o=>o.key===document.getElementById('f-brand').value)?.name||'',version:v,date:document.getElementById('f-date').value,chip:document.getElementById('f-chip')?.value||'',arch:document.getElementById('f-arch')?.value||'',scope:document.getElementById('f-scope').value,riskLevel:'低',features:(document.getElementById('f-features')?.value||'').split('\n').filter(Boolean),desc:document.getElementById('f-notes')?.value||v});
+  } else if(recordTab==='test'){
+    const ti = document.getElementById('t-title')?.value.trim();
+    if(!ti){showToast('请填写标题','err');return}
+    customT.push({id:Date.now(),brand:document.getElementById('t-brand').value,title:ti,date:document.getElementById('t-date').value,location:document.getElementById('t-location')?.value||'',vehicle:document.getElementById('t-vehicle')?.value||'',score:{city:parseFloat(document.getElementById('t-city')?.value)||0,highway:parseFloat(document.getElementById('t-highway')?.value)||0,parking:parseFloat(document.getElementById('t-parking')?.value)||0},scenes:(document.getElementById('t-scenes')?.value||'').split(/[,，]/).filter(Boolean),highlights:document.getElementById('t-highlights')?.value||''});
   } else {
-    fileArea.style.display = '';
-    textArea.style.display = 'none';
+    const d = document.getElementById('i-desc')?.value.trim();
+    if(!d){showToast('请填写问题描述','err');return}
+    customI.push({id:Date.now(),brand:document.getElementById('i-brand').value,level:document.getElementById('i-level').value,category:document.getElementById('i-cat')?.value||'其他',desc:d,date:document.getElementById('i-date').value});
   }
+  saveAll(); showToast('已保存'); renderCollect();
 }
 
-function handleImportFile(file) {
-  if (!file) return;
-  const nameSpan = document.getElementById('import-file-name');
-  nameSpan.textContent = file.name;
-}
-
-function parseImportedText() {
+function parseImport() {
   const text = document.getElementById('import-text')?.value.trim();
-  if (!text) { showToast('请粘贴网页内容', 'error'); return; }
-
-  const parsed = parseWebContent(text);
-  const container = document.getElementById('import-results');
-  if (!container) return;
-
-  if (parsed.length === 0) {
-    container.innerHTML = `<div class="empty-state" style="padding:30px"><span class="empty-icon">📄</span><p>未识别到有效数据</p><p class="empty-hint">尝试粘贴包含"版本"、"版本号"、"测评"等关键词的内容</p></div>`;
-    return;
-  }
-
-  container.innerHTML = `<div class="records-list">${parsed.map((r, i) => `
-    <div class="record-item">
-      <span class="record-type">${r.source||'网页'} ${r.type || '其它'}</span>
-      <span class="record-info">${r.brand || '未知'} · ${r.version || ''}</span>
-      <span class="record-date">${r.date || ''}</span>
-      <span class="record-summary">${(r.title || '').slice(0,40)}${(r.title || '').length>40?'...':''}</span>
-      <span class="record-actions">
-        <button class="btn-sm btn-primary" onclick="importParsedResult(${i})">导入</button>
-      </span>
-    </div>
-  `).join('')}</div>`;
-
-  showToast(`识别到 ${parsed.length} 条数据`, 'success');
+  if(!text){showToast('请粘贴内容','err');return}
+  const results = [], lines = text.split('\n').filter(Boolean);
+  let brand=null; for(const[k,r] of Object.entries({H:/华为|ADS|问界|鸿蒙/,X:/小鹏|XNGP/,T:/特斯拉|FSD|Model/,L:/理想|AD Max|L7|L6/,Mi:/小米|SU7|Pilot/,HX:/地平线|HSD|征程/,BYD:/比亚迪|BYD|天神之眼/})){if(r.test(text)){brand=k;break}}
+  let type='news'; if(/OTA|版本|推送|升级/.test(text)) type='ota'; if(/实测|测评|试驾|体验/.test(text)) type='test'; if(/问题|故障|投诉/.test(text)) type='issue';
+  const dm = text.match(/(\d{4}[-/年]\d{1,2}[-/月]\d{1,2})/);
+  const date = dm ? dm[1].replace(/[年/]/g,'-').replace(/月/,'-').replace(/日/,'') : new Date().toISOString().slice(0,10);
+  const vm = text.match(/([A-Z][A-Za-z]*\s*\d+\.?\d*)/);
+  const title = lines[0]?.slice(0,60)||'';
+  results.push({id:Date.now(),source:'网页',type,brand:brand||'',version:vm?vm[1].trim():'',date,title,content:text.slice(0,200),parsed:{brand}});
+  document.getElementById('import-results').innerHTML = results.map((r,i)=>`<div class="glossary-item" style="display:flex;justify-content:space-between;align-items:center"><div><strong>${r.title}</strong><div style="font-size:12px;color:var(--tx2)">${r.brand||'?'} · ${r.type}  · ${r.date}</div></div><button class="btn btn-sm btn-p" onclick="doImport(${i})">导入</button></div>`).join('');
+  window._importData = results;
 }
 
-function parseWebContent(text) {
-  const results = [];
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-
-  for (const line of lines) {
-    if (line.length < 20) continue;
-
-    // Try to identify brand
-    let brand = null;
-    for (const [name, keywords] of Object.entries({
-      '华为ADS': ['华为', 'ADS', '问界', '鸿蒙'],
-      '小鹏XNGP': ['小鹏', 'XNGP', 'G9', 'P7'],
-      '特斯拉FSD': ['特斯拉', 'FSD', 'Model'],
-      '理想AD Max': ['理想', 'AD Max', 'L7', 'L6'],
-      '小米智驾': ['小米', 'SU7', 'Pilot'],
-      '地平线HSD': ['地平线', 'HSD'],
-      '比亚迪': ['比亚迪', 'BYD', '天神之眼']
-    })) {
-      if (keywords.some(k => line.includes(k))) { brand = name; break; }
-    }
-
-    // Try to identify data type
-    let type = 'unknown';
-    if (line.includes('版本') && (line.includes('OTA') || line.includes('推送'))) type = 'ota';
-    else if (line.includes('实测') || line.includes('测评') || line.includes('体验')) type = 'test';
-    else if (line.includes('问题') || line.includes('bug') || line.includes('故障')) type = 'issue';
-    else if (line.includes('新闻') || line.includes('动态') || line.includes('发布')) type = 'news';
-
-    // Try to extract version
-    const versionMatch = line.match(/([A-Za-z]+\s*\d+\.?\d*)/);
-    const version = versionMatch ? versionMatch[1] : '';
-
-    // Try to extract date
-    const dateMatch = line.match(/(\d{4}[-/年]\d{1,2}[-/月]\d{1,2})/);
-    const date = dateMatch ? dateMatch[1].replace(/[-/年]/g, '-') : '';
-
-    if (brand || type !== 'unknown') {
-      results.push({
-        id: Date.now() + Math.random(),
-        source: 'text',
-        type,
-        brand: brand || '',
-        version,
-        date,
-        title: line.slice(0, 50),
-        content: line,
-        parsed: { brand, version }
-      });
-    }
-  }
-
-  return results;
+function doImport(i) {
+  const r = window._importData?.[i]; if(!r) return;
+  if(r.type==='ota')customV.push({id:Date.now(),brand:r.brand,name:BRAND_OPTIONS.find(o=>o.key===r.brand)?.name||r.brand,version:r.version,date:r.date,chip:'',arch:'',scope:'灰度',riskLevel:'低',features:[r.content.slice(0,100)],desc:r.content});
+  else if(r.type==='test')customT.push({id:Date.now(),brand:r.brand,title:r.title,date:r.date,location:'',vehicle:'',score:{city:0,highway:0,parking:0},scenes:[],highlights:r.content});
+  else customI.push({id:Date.now(),brand:r.brand,level:'P2',category:'其他',desc:r.content,date:r.date});
+  saveAll(); showToast('已导入'); document.getElementById('import-results').innerHTML='';
 }
 
-function importParsedResult(index) {
-  const parsed = parseWebContent(document.getElementById('import-text')?.value?.trim())[index];
-  if (!parsed) return;
-
-  // Find the actual data
-  const allText = document.getElementById('import-text')?.value?.trim() || '';
-  const lines = allText.split('\n').map(l => l.trim()).filter(Boolean);
-
-  // Get the corresponding line
-  if (!lines[index]) return;
-  const line = lines[index];
-  const record = parsed;
-
-  // Add to appropriate data array
-  if (record.type === 'ota') {
-    const newRec = {
-      id: Date.now(),
-      brand: record.brand || 'H',
-      name: record.brand || '未知品牌',
-      version: record.version || '',
-      date: record.date || new Date().toISOString().slice(0,10),
-      chip: '',
-      arch: '',
-      features: [],
-      scope: '灰度',
-      riskLevel: '低',
-      desc: line
-    };
-    customVersions.push(newRec);
-    saveData('zhijia_custom_versions', customVersions);
-  } else if (record.type === 'test') {
-    const newRec = {
-      id: Date.now(),
-      brand: record.brand || 'H',
-      name: record.brand || '未知品牌',
-      version: record.version || '',
-      title: record.title,
-      date: record.date || new Date().toISOString().slice(0,10),
-      location: '',
-      vehicle: '',
-      weather: '',
-      mileage: '',
-      score: { city: 0, highway: 0, parking: 0 },
-      scenes: [],
-      highlights: line,
-      desc: ''
-    };
-    customTests.push(newRec);
-    saveData('zhijia_custom_tests', customTests);
-  } else if (record.type === 'issue') {
-    const newRec = {
-      id: Date.now(),
-      brand: record.brand || 'H',
-      name: record.brand || '未知品牌',
-      version: record.version || '',
-      date: record.date || new Date().toISOString().slice(0,10),
-      level: 'P2',
-      category: '其他',
-      desc: line,
-      steps: '',
-      frequency: '偶发'
-    };
-    customIssues.push(newRec);
-    saveData('zhijia_custom_issues', customIssues);
-  }
-
-  showToast('已导入到数据采集', 'success');
-  // Switch to records tab
-  document.querySelector('.collect-tab-main:nth-child(1)')?.click();
+function saveAll() {
+  localStorage.setItem('z_cv',JSON.stringify(customV));
+  localStorage.setItem('z_ct',JSON.stringify(customT));
+  localStorage.setItem('z_ci',JSON.stringify(customI));
 }
-
-function renderRecordsSection(area) {
-  const otaN = customVersions.length;
-  const testN = customTests.length;
-  const issueN = customIssues.length;
-  const allRecords = [
-    ...customVersions.map(r => ({...r, _type:'ota'})),
-    ...customTests.map(r => ({...r, _type:'test'})),
-    ...customIssues.map(r => ({...r, _type:'issue'}))
-  ].sort((a,b) => (b.date||'').localeCompare(a.date||''));
-
-  area.innerHTML = `
-    <h3>已录入记录</h3>
-    <div class="collect-stats-row">
-      <span class="cstat cstat-ota">OTA <b>${otaN}</b></span>
-      <span class="cstat cstat-test">实测 <b>${testN}</b></span>
-      <span class="cstat cstat-issue">问题 <b>${issueN}</b></span>
-      <span class="cstat cstat-total">合计 <b>${allRecords.length}</b></span>
-    </div>
-    ${allRecords.length === 0 ? `<div class="empty-state" style="padding:30px"><span class="empty-icon">📝</span><p>暂无已录入记录</p><p class="empty-hint">填写上方表单后提交</p></div>` :
-    `<div class="records-list">${allRecords.map((r, idx) => {
-      const typeIcon = r._type === 'ota' ? '📋' : r._type === 'test' ? '🧪' : '⚠️';
-      const typeName = r._type === 'ota' ? 'OTA' : r._type === 'test' ? '实测' : '问题';
-      const brandInfo = BRAND_OPTIONS.find(o => o.key === r.brand);
-      return `<div class="record-item">
-        <span class="record-type">${typeIcon} ${typeName}</span>
-        <span class="record-brand" style="background:${BRAND_COLORS[r.brand]||'#555'}">${r.brand}</span>
-        <span class="record-info">${brandInfo?.name||r.brand} · ${r.version||''}</span>
-        <span class="record-date">${r.date||''}</span>
-        <span class="record-summary">${(r.desc||r.highlights||'').slice(0,40)}${(r.desc||r.highlights||'').length>40?'...':''}</span>
-        <span class="record-actions">
-          <button class="btn-icon" onclick="editRecord('${r._type}',${r.id})" title="编辑">编辑</button>
-          <button class="btn-icon" onclick="deleteRecord('${r._type}',${r.id})" title="删除">删除</button>
-        </span>
-      </div>`;
-    }).join('')}</div>`}
-  `;
-}
-
-function renderActionsSection(area) {
-  area.innerHTML = `
-    <div class="collect-actions-row">
-      <button class="btn-secondary" onclick="exportJSON()">导出JSON</button>
-      <button class="btn-secondary" onclick="exportCSV()">导出CSV</button>
-      <label class="btn-secondary" style="cursor:pointer">导入数据<input type="file" accept=".json" onchange="importData(this.files[0])" style="display:none" /></label>
-      <button class="btn-danger" onclick="clearAllData()">删除 清空所有</button>
-    </div>
-  `;
-}
-
-// ===== 表单提交 =====
-function validateForm(fields) {
-  for (const f of fields) {
-    const el = document.getElementById(f.id);
-    if (!el) continue;
-    const val = el.value.trim();
-    if (f.required && !val) { showToast(`请填写${f.label}`, 'error'); el.focus(); return false; }
-  }
-  return true;
-}
-
-function submitOTA() {
-  if (!validateForm([{id:'f-brand',label:'品牌',required:true},{id:'f-version',label:'版本号',required:true}])) return;
-  const editId = document.getElementById('ota-edit-id')?.value;
-  const featuresRaw = document.getElementById('f-features')?.value || '';
-  const features = featuresRaw.split('\n').map(s=>s.trim()).filter(Boolean);
-  const record = {
-    id: editId ? parseInt(editId) : Date.now(),
-    brand: document.getElementById('f-brand').value,
-    name: BRAND_OPTIONS.find(o=>o.key===document.getElementById('f-brand').value)?.name || '',
-    version: document.getElementById('f-version').value.trim(),
-    date: document.getElementById('f-date').value || new Date().toISOString().slice(0,10),
-    chip: document.getElementById('f-chip')?.value.trim() || '',
-    arch: document.getElementById('f-arch')?.value.trim() || '',
-    features,
-    scope: document.getElementById('f-scope')?.value || '灰度',
-    riskLevel: document.getElementById('f-risk')?.value || '低',
-    desc: document.getElementById('f-notes')?.value.trim() || document.getElementById('f-version').value.trim()
-  };
-  if (editId) {
-    const idx = customVersions.findIndex(r => r.id === parseInt(editId));
-    if (idx >= 0) customVersions[idx] = record;
-    showToast('✓ OTA记录已更新');
-  } else {
-    customVersions.push(record);
-    showToast('✓ OTA记录已添加');
-  }
-  saveData('zhijia_custom_versions', customVersions);
-  resetForm('ota');
-  refreshAfterSubmit();
-}
-
-function submitTest() {
-  if (!validateForm([{id:'t-brand',label:'品牌',required:true},{id:'t-version',label:'版本号',required:true}])) return;
-  const editId = document.getElementById('test-edit-id')?.value;
-  const scenesRaw = document.getElementById('t-scenes')?.value || '';
-  const scenes = scenesRaw.split(/[,，]/).map(s=>s.trim()).filter(Boolean);
-  const brandKey = document.getElementById('t-brand').value;
-  const brandName = BRAND_OPTIONS.find(o=>o.key===brandKey)?.name || '';
-  const title = `${brandName} ${document.getElementById('t-version').value.trim()} 实测`;
-  const record = {
-    id: editId ? parseInt(editId) : Date.now(),
-    brand: brandKey,
-    name: brandName,
-    title,
-    version: document.getElementById('t-version').value.trim(),
-    date: document.getElementById('t-date').value || new Date().toISOString().slice(0,10),
-    location: document.getElementById('t-location')?.value.trim() || '',
-    vehicle: document.getElementById('t-vehicle')?.value.trim() || '',
-    weather: document.getElementById('t-weather')?.value || '',
-    mileage: document.getElementById('t-mileage')?.value || '',
-    score: {
-      city: parseFloat(document.getElementById('t-city')?.value) || 0,
-      highway: parseFloat(document.getElementById('t-highway')?.value) || 0,
-      parking: parseFloat(document.getElementById('t-parking')?.value) || 0
-    },
-    scenes,
-    highlights: document.getElementById('t-highlights')?.value.trim() || '',
-    desc: document.getElementById('t-issues')?.value.trim() || ''
-  };
-  if (editId) {
-    const idx = customTests.findIndex(r => r.id === parseInt(editId));
-    if (idx >= 0) customTests[idx] = record;
-    showToast('✓ 实测记录已更新');
-  } else {
-    customTests.push(record);
-    showToast('✓ 实测记录已添加');
-  }
-  saveData('zhijia_custom_tests', customTests);
-  resetForm('test');
-  refreshAfterSubmit();
-}
-
-function submitIssue() {
-  if (!validateForm([{id:'i-brand',label:'品牌',required:true},{id:'i-version',label:'版本号',required:true},{id:'i-desc',label:'问题描述',required:true}])) return;
-  const editId = document.getElementById('issue-edit-id')?.value;
-  const brandKey = document.getElementById('i-brand').value;
-  const brandName = BRAND_OPTIONS.find(o=>o.key===brandKey)?.name || '';
-  const record = {
-    id: editId ? parseInt(editId) : Date.now(),
-    brand: brandKey,
-    name: brandName,
-    version: document.getElementById('i-version').value.trim(),
-    date: document.getElementById('i-date').value || new Date().toISOString().slice(0,10),
-    level: document.getElementById('i-level')?.value || 'P2',
-    category: document.getElementById('i-category')?.value || '其他',
-    desc: document.getElementById('i-desc')?.value.trim(),
-    steps: document.getElementById('i-steps')?.value.trim() || '',
-    frequency: document.getElementById('i-freq')?.value || '偶发'
-  };
-  if (editId) {
-    const idx = customIssues.findIndex(r => r.id === parseInt(editId));
-    if (idx >= 0) customIssues[idx] = record;
-    showToast('✓ 问题记录已更新');
-  } else {
-    customIssues.push(record);
-    showToast('✓ 问题记录已添加');
-  }
-  saveData('zhijia_custom_issues', customIssues);
-  resetForm('issue');
-  refreshAfterSubmit();
-}
-
-function resetForm(type) {
-  editingRecord = null;
-  if (type === 'ota') {
-    ['f-brand','f-version','f-chip','f-arch','f-features','f-notes'].forEach(id => { const e=document.getElementById(id); if(e) e.value=''; });
-    const d=document.getElementById('f-date'); if(d) d.value=new Date().toISOString().slice(0,10);
-    const s=document.getElementById('f-scope'); if(s) s.value='灰度';
-    const r=document.getElementById('f-risk'); if(r) r.value='低';
-    const eid=document.getElementById('ota-edit-id'); if(eid) eid.value='';
-  } else if (type === 'test') {
-    ['t-brand','t-version','t-location','t-vehicle','t-mileage','t-city','t-highway','t-parking','t-scenes','t-highlights','t-issues'].forEach(id => { const e=document.getElementById(id); if(e) e.value=''; });
-    const d=document.getElementById('t-date'); if(d) d.value=new Date().toISOString().slice(0,10);
-    const w=document.getElementById('t-weather'); if(w) w.value='晴';
-    const eid=document.getElementById('test-edit-id'); if(eid) eid.value='';
-  } else if (type === 'issue') {
-    ['i-brand','i-version','i-desc','i-steps'].forEach(id => { const e=document.getElementById(id); if(e) e.value=''; });
-    const d=document.getElementById('i-date'); if(d) d.value=new Date().toISOString().slice(0,10);
-    const l=document.getElementById('i-level'); if(l) l.value='P2';
-    const c=document.getElementById('i-category'); if(c) c.value='其他';
-    const f=document.getElementById('i-freq'); if(f) f.value='偶发';
-    const eid=document.getElementById('issue-edit-id'); if(eid) eid.value='';
-  }
-}
-
-function refreshAfterSubmit() {
-  renderCollectPage();
-}
-
-// ===== 编辑记录 =====
-function editRecord(type, id) {
-  let arr, record;
-  if (type === 'ota') { arr = customVersions; record = arr.find(r=>r.id===id); if(!record) return;
-    switchRecordTab('ota');
-    setTimeout(() => {
-      const set = (k,v) => { const e=document.getElementById(k); if(e) e.value=v||''; };
-      set('ota-edit-id', id); set('f-brand', record.brand); set('f-version', record.version);
-      set('f-date', record.date); set('f-chip', record.chip); set('f-arch', record.arch);
-      set('f-scope', record.scope); set('f-risk', record.riskLevel);
-      set('f-features', (record.features||[]).join('\n')); set('f-notes', record.desc);
-    }, 50);
-  } else if (type === 'test') { arr = customTests; record = arr.find(r=>r.id===id); if(!record) return;
-    switchRecordTab('test');
-    setTimeout(() => {
-      const set = (k,v) => { const e=document.getElementById(k); if(e) e.value=v||''; };
-      set('test-edit-id', id); set('t-brand', record.brand); set('t-version', record.version);
-      set('t-date', record.date); set('t-location', record.location); set('t-vehicle', record.vehicle);
-      set('t-weather', record.weather); set('t-mileage', record.mileage);
-      set('t-city', record.score?.city); set('t-highway', record.score?.highway); set('t-parking', record.score?.parking);
-      set('t-scenes', (record.scenes||[]).join(',')); set('t-highlights', record.highlights); set('t-issues', record.desc);
-    }, 50);
-  } else { arr = customIssues; record = arr.find(r=>r.id===id); if(!record) return;
-    switchRecordTab('issue');
-    setTimeout(() => {
-      const set = (k,v) => { const e=document.getElementById(k); if(e) e.value=v||''; };
-      set('issue-edit-id', id); set('i-brand', record.brand); set('i-version', record.version);
-      set('i-date', record.date); set('i-level', record.level); set('i-category', record.category);
-      set('i-desc', record.desc); set('i-steps', record.steps); set('i-freq', record.frequency);
-    }, 50);
-  }
-  showToast('已加载记录到表单，修改后点击提交', 'info');
-}
-
-// ===== 删除记录 =====
-function deleteRecord(type, id) {
-  if (!confirm('确定删除此条记录？')) return;
-  if (type === 'ota') { customVersions = customVersions.filter(r=>r.id!==id); saveData('zhijia_custom_versions', customVersions); }
-  else if (type === 'test') { customTests = customTests.filter(r=>r.id!==id); saveData('zhijia_custom_tests', customTests); }
-  else { customIssues = customIssues.filter(r=>r.id!==id); saveData('zhijia_custom_issues', customIssues); }
-  showToast('记录已删除');
-  refreshAfterSubmit();
-}
-
-// ===== 导出 =====
-function exportJSON() {
-  const data = { customVersions, customTests, customIssues, exportDate: new Date().toISOString() };
-  downloadFile('zhijia-data.json', JSON.stringify(data, null, 2), 'application/json');
-  showToast('JSON已导出');
-}
-
-function exportCSV() {
-  // OTA CSV
-  if (customVersions.length) {
-    const h = '品牌,名称,版本,日期,芯片,架构,推送范围,风险等级,核心功能,备注\n';
-    const rows = customVersions.map(r => `${r.brand},${r.name},${r.version},${r.date},${r.chip||''},${r.arch||''},${r.scope||''},${r.riskLevel||''},"${(r.features||[]).join(';')}","${r.desc||''}"`).join('\n');
-    downloadFile('zhijia-ota.csv', '﻿' + h + rows, 'text/csv;charset=utf-8');
-  }
-  // 问题 CSV
-  if (customIssues.length) {
-    const h = '品牌,名称,版本,日期,等级,分类,描述,复现步骤,频率\n';
-    const rows = customIssues.map(r => `${r.brand},${r.name},${r.version||''},${r.date},${r.level||''},${r.category||''},"${r.desc||''}","${r.steps||''}",${r.frequency||''}`).join('\n');
-    downloadFile('zhijia-issues.csv', '﻿' + h + rows, 'text/csv;charset=utf-8');
-  }
-  if (!customVersions.length && !customIssues.length) showToast('暂无数据可导出', 'error');
-  else showToast('CSV已导出');
-}
-
-function downloadFile(name, content, type) {
-  const blob = new Blob([content], { type });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = name; a.click();
-  URL.revokeObjectURL(url);
-}
-
-// ===== 导入 =====
-function importData(file) {
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    try {
-      const data = JSON.parse(e.target.result);
-      let count = 0;
-      if (data.customVersions?.length) { customVersions.push(...data.customVersions); saveData('zhijia_custom_versions', customVersions); count += data.customVersions.length; }
-      if (data.customTests?.length) { customTests.push(...data.customTests); saveData('zhijia_custom_tests', customTests); count += data.customTests.length; }
-      if (data.customIssues?.length) { customIssues.push(...data.customIssues); saveData('zhijia_custom_issues', customIssues); count += data.customIssues.length; }
-      showToast(`✓ 已导入 ${count} 条记录`);
-      renderCollectPage();
-    } catch { showToast('导入失败：文件格式不正确', 'error'); }
-  };
-  reader.readAsText(file);
-}
-
-function clearAllData() {
-  if (!confirm('确定清空所有已录入的数据？此操作不可恢复！')) return;
-  customVersions = []; customTests = []; customIssues = [];
-  saveData('zhijia_custom_versions', customVersions);
-  saveData('zhijia_custom_tests', customTests);
-  saveData('zhijia_custom_issues', customIssues);
-  showToast('所有自定义数据已清空');
-  renderCollectPage();
-}
-
-// ===== 我的收藏 =====
-function renderFavorites() {
-  const container = document.getElementById('favorites-list');
-  if (!container) return;
-  if (favorites.length === 0) {
-    container.innerHTML = `<div class="empty-state"><span class="empty-icon"></span><p>暂无收藏内容</p><p class="empty-hint">浏览动态时点击 ☆ 按钮添加收藏</p></div>`;
-    return;
-  }
-  const favNews = NEWS_DATA.filter(n => favorites.includes(n.id));
-  if (favNews.length === 0) {
-    container.innerHTML = `<div class="empty-state"><span class="empty-icon"></span><p>收藏的内容已被清理</p></div>`;
-    return;
-  }
-  container.innerHTML = favNews.map(news => `
-    <div class="news-card"><div class="news-meta">
-      <span class="news-date">${news.date}</span>
-      <span class="news-brand" style="background:${BRAND_COLORS[news.brand]||'#555'}">${news.brand}</span>
-      <span class="news-brand-name">${news.brandName}</span>
-      <span class="news-type type-${news.type}">${news.typeLabel}</span>
-      <span class="news-favorite active" onclick="toggleFavorite(${news.id}, this); renderFavorites();" title="取消收藏">★</span>
-    </div><div class="news-title">${news.title}</div><div class="news-summary">${news.summary}</div></div>
-  `).join('');
-}
-
-// ===== Toast =====
-function showToast(message, type='success') {
-  let c = document.getElementById('toast-container');
-  if (!c) { c = document.createElement('div'); c.id = 'toast-container'; document.body.appendChild(c); }
-  const t = document.createElement('div'); t.className = `toast toast-${type}`; t.textContent = message;
-  c.appendChild(t); setTimeout(()=>t.classList.add('show'), 10);
-  setTimeout(()=>{ t.classList.remove('show'); setTimeout(()=>t.remove(), 300); }, 3000);
-}
-
-// ===== 图表 =====
-let chartInstances = {};
-function renderCharts() {
-  Object.values(chartInstances).forEach(c => c.destroy());
-  chartInstances = {};
-  renderRadarChart();
-  renderBarChart();
-  renderScoreCompareChart();
-}
-
-function getChartColors() {
-  return {
-    bg: 'rgba(26,26,37,0.3)',
-    grid: 'rgba(255,255,255,0.06)',
-    text: '#9898a8',
-    colors: ['#e53935','#ff9800','#1565c0','#7b1fa2','#ff6f00','#2e7d32','#00838f']
-  };
-}
-
-function renderRadarChart() {
-  const canvas = document.getElementById('radar-chart');
-  if (!canvas || typeof Chart === 'undefined') return;
-  const ctx = canvas.getContext('2d');
-  const cc = getChartColors();
-  chartInstances.radar = new Chart(ctx, {
-    type: 'radar',
-    data: {
-      labels: ['城市场景','高速场景','泊车场景','综合体验'],
-      datasets: SCORE_DATA.slice(0,6).map((s,i) => ({
-        label: s.name,
-        data: [s.city, s.highway, s.parking, +((s.city+s.highway+s.parking)/3).toFixed(1)],
-        borderColor: s.color,
-        backgroundColor: s.color + '18',
-        borderWidth: 2, pointRadius: 3, pointBackgroundColor: s.color
-      }))
-    },
-    options: {
-      responsive: true, maintainAspectRatio: true,
-      scales: { r: { min: 6, max: 10, ticks: { stepSize: 1, color: cc.text, backdropColor: 'transparent' }, grid: { color: cc.grid }, pointLabels: { color: cc.text, font: { size: 12 } } } },
-      plugins: { legend: { labels: { color: cc.text, font: { size: 11 }, boxWidth: 12, padding: 12 } } }
-    }
-  });
-}
-
-function renderBarChart() {
-  const canvas = document.getElementById('bar-chart');
-  if (!canvas || typeof Chart === 'undefined') return;
-  const ctx = canvas.getContext('2d');
-  const cc = getChartColors();
-  const d = SCORE_DATA;
-  chartInstances.bar = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: d.map(s => s.name),
-      datasets: [{
-        label: 'OTA更新次数', data: [8,6,5,4,3,4,2],
-        backgroundColor: d.map((s,i) => cc.colors[i] + '99'),
-        borderColor: d.map(s => s.color),
-        borderWidth: 1, borderRadius: 4
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: true,
-      indexAxis: 'y',
-      scales: { x: { grid: { color: cc.grid }, ticks: { color: cc.text } }, y: { grid: { display: false }, ticks: { color: cc.text } } },
-      plugins: { legend: { display: false } }
-    }
-  });
-}
-
-function renderScoreCompareChart() {
-  const canvas = document.getElementById('score-compare-chart');
-  if (!canvas || typeof Chart === 'undefined') return;
-  const ctx = canvas.getContext('2d');
-  const cc = getChartColors();
-  chartInstances.compare = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: SCORE_DATA.map(s => s.name),
-      datasets: [
-        { label: '城市场景', data: SCORE_DATA.map(s => s.city), backgroundColor: '#4a90d9aa', borderColor: '#4a90d9', borderWidth: 1, borderRadius: 4 },
-        { label: '高速场景', data: SCORE_DATA.map(s => s.highway), backgroundColor: '#3d9970aa', borderColor: '#3d9970', borderWidth: 1, borderRadius: 4 },
-        { label: '泊车场景', data: SCORE_DATA.map(s => s.parking), backgroundColor: '#ff9800aa', borderColor: '#ff9800', borderWidth: 1, borderRadius: 4 }
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: true,
-      scales: { x: { grid: { color: cc.grid }, ticks: { color: cc.text } }, y: { min: 6, max: 10, grid: { color: cc.grid }, ticks: { color: cc.text, stepSize: 0.5 } } },
-      plugins: { legend: { labels: { color: cc.text, font: { size: 11 }, boxWidth: 12 } } }
-    }
-  });
+function showToast(msg,type='ok') {
+  let c = document.getElementById('toast'); if(!c){c=document.createElement('div');c.id='toast';document.body.appendChild(c);}
+  const t = document.createElement('div');t.className='toast toast-'+type;t.textContent=msg;c.appendChild(t);
+  setTimeout(()=>{t.style.transform='translateX(120%)';setTimeout(()=>t.remove(),300)},3000);
 }
