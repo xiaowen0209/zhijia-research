@@ -131,7 +131,7 @@ function togglePK(brand) {
 }
 function applyPK() {
   if(pkSelected.length<2){showToast('请至少选择2个方案','err');return}
-  location.search = '?pk='+pkSelected.join(',');
+  history.replaceState(null,'','?pk='+pkSelected.join(','));
   switchPage('compare');
 }
 
