@@ -11,6 +11,12 @@ let recordTab = 'ota';
 let vfilter = 'all', gcat = 'all';
 let charts = {};
 
+const BRAND_OPTIONS = [
+  {key:"H",name:"华为ADS"},{key:"X",name:"小鹏XNGP"},{key:"T",name:"特斯拉FSD"},
+  {key:"L",name:"理想AD Max"},{key:"Mi",name:"小米智驾"},{key:"HX",name:"地平线HSD"},
+  {key:"BYD",name:"比亚迪天神之眼"},{key:"BD",name:"百度Apollo"},{key:"WR",name:"文远知行WeRide"}
+];
+
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.tn-item').forEach(el => el.addEventListener('click', e => { e.preventDefault(); switchPage(el.dataset.page); }));
   document.querySelectorAll('.m-menu a').forEach(el => el.addEventListener('click', e => { e.preventDefault(); switchPage(el.dataset.page); toggleMobileMenu(); }));
@@ -29,8 +35,10 @@ function switchPage(p) {
   Object.values(charts).forEach(c => { try { c.destroy() } catch {} }); charts = {};
 
   const pages = {
-    home: renderHome, compare: renderCompare, scenario: renderScenario,
-    versions: renderVersions, glossary: renderGlossary, collect: renderCollect
+    home: renderHome, compare: renderCompare, matrix: renderMatrix,
+    scenario: renderScenario, versions: renderVersions, ota: renderOTA,
+    dataviz: renderDataViz, glossary: renderGlossary, regulation: renderRegulation,
+    collect: renderCollect, favorites: renderFavorites
   };
   mc.innerHTML = '<div class="page active" id="page-'+p+'"></div>';
   if (pages[p]) pages[p]();
@@ -220,7 +228,70 @@ function filterGlossary(q) {
   document.querySelectorAll('.glossary-item').forEach(el => { el.style.display = !s||el.dataset.term.includes(s) ? '' : 'none'; });
 }
 
-// ===== COLLECT =====
+// ===== MATRIX =====
+function renderMatrix() {
+  const el = document.getElementById('page-matrix');
+  if (!el) return;
+  const f = MATRIX_DATA.features, s = MATRIX_DATA.solutions;
+  el.innerHTML = `<h1 style="font-size:24px;font-weight:800;margin-bottom:6px">功能矩阵</h1><p style="color:var(--tx2);margin-bottom:20px">各方案功能支持情况一览</p>
+    <div style="overflow-x:auto"><table class="scenario-table" style="min-width:700px"><thead><tr><th>功能</th>${s.map(x=>`<th>${x.name}</th>`).join('')}</tr></thead>
+    <tbody>${f.map((fi,di)=>`<tr><td style="text-align:left;font-weight:600">${fi}</td>${s.map(x=>`<td class="${x.checks[di]?'s-hot':''}">${x.checks[di]?'✓':'—'}</td>`).join('')}</tr>`).join('')}</tbody>
+    <tfoot><tr><td style="text-align:left;font-weight:700">支持数</td>${s.map(x=>`<td style="font-weight:700;color:var(--blue)">${x.checks.filter(Boolean).length}/${x.checks.length}</td>`).join('')}</tr></tfoot></table></div>`;
+}
+
+// ===== OTA =====
+function renderOTA() {
+  const el = document.getElementById('page-ota');
+  if (!el) return;
+  el.innerHTML = `<h1 style="font-size:24px;font-weight:800;margin-bottom:6px">OTA追踪</h1><p style="color:var(--tx2);margin-bottom:20px">实时追踪各品牌OTA推送进度</p>
+    <div style="display:flex;flex-direction:column;gap:12px">${OTA_DATA.map(o=>{
+      const cn = parseInt(o.coverage)||0;
+      const sc = o.status.includes('全量')?'s-hot':o.status.includes('灰度')||o.status.includes('分批')?'status-pushing':'status-plan';
+      return `<div class="vdetail"><div class="vd-top">
+        <span class="bc-badge" style="background:${BRAND_COLORS[o.brand]};width:24px;height:24px;font-size:10px">${o.brand}</span>
+        <strong>${o.name}</strong><span style="font-size:12px;color:var(--tx2)">${o.currentVersion} → ${o.latestVersion}</span>
+        <span class="vd-scope vs-${sc==='s-hot'?'full':'plan'}">${o.status}</span><span style="margin-left:auto;font-size:12px;color:var(--tx3)">${o.expectedDate}</span></div>
+        <div style="height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;margin-top:8px"><div style="height:100%;border-radius:3px;width:${cn}%;background:linear-gradient(90deg,${BRAND_COLORS[o.brand]},${BRAND_COLORS[o.brand]}88)"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--tx3);margin-top:4px"><span>覆盖率: ${o.coverage}</span></div></div>`}).join('')}</div>`;
+}
+
+// ===== DATA VIZ =====
+function renderDataViz() {
+  const el = document.getElementById('page-dataviz');
+  if (!el) return;
+  el.innerHTML = `<h1 style="font-size:24px;font-weight:800;margin-bottom:6px">数据可视化</h1><p style="color:var(--tx2);margin-bottom:20px">智能驾驶行业数据图表分析</p>
+    <div class="compare-grid"><div class="chart-box"><h3>方案综合评分雷达图</h3><canvas id="dv-radar"></canvas></div><div class="chart-box"><h3>场景评分对比</h3><canvas id="dv-bar"></canvas></div><div class="chart-box" style="grid-column:1/-1"><h3>OTA更新频率</h3><canvas id="dv-hbar"></canvas></div></div>`;
+  setTimeout(()=>{
+    if(typeof Chart==='undefined') return;
+    const clr = ['#f85149','#d2991d','#58a6ff','#a371f7','#3fb950','#39d353','#8b949e'];
+    const brands = SCORE_DATA;
+    const rEl=document.getElementById('dv-radar'), bEl=document.getElementById('dv-bar'), hEl=document.getElementById('dv-hbar');
+    if(!rEl||!bEl||!hEl) return;
+    charts.r1=new Chart(rEl,{type:'radar',data:{labels:['城市场景','高速场景','泊车场景','综合体验'],datasets:brands.map((b,i)=>({label:b.name,data:[b.city,b.highway,b.parking,+((b.city+b.highway+b.parking)/3).toFixed(1)],borderColor:clr[i],backgroundColor:clr[i]+'18',borderWidth:2}))},options:{responsive:true,scales:{r:{min:7,max:10,ticks:{stepSize:1,color:'#8b949e',backdropColor:'transparent'},grid:{color:'#30363d'},pointLabels:{color:'#e6edf3',font:{size:11}}}},plugins:{legend:{labels:{color:'#8b949e',font:{size:11}}}}}});
+    charts.b1=new Chart(bEl,{type:'bar',data:{labels:brands.map(b=>b.name),datasets:[{label:'城市场景',data:brands.map(b=>b.city),backgroundColor:'#58a6ff99'},{label:'高速场景',data:brands.map(b=>b.highway),backgroundColor:'#3fb95099'},{label:'泊车场景',data:brands.map(b=>b.parking),backgroundColor:'#d2991d99'}]},options:{responsive:true,scales:{y:{min:6,max:10,grid:{color:'#30363d'},ticks:{color:'#8b949e'}},x:{ticks:{color:'#8b949e'}}},plugins:{legend:{labels:{color:'#8b949e'}}}}});
+    charts.h1=new Chart(hEl,{type:'bar',data:{labels:brands.map(b=>b.name),datasets:[{label:'OTA更新次数',data:[8,6,5,4,3,4,2],backgroundColor:clr.map(c=>c+'99'),borderColor:clr,borderWidth:1,borderRadius:4}]},options:{responsive:true,indexAxis:'y',scales:{x:{grid:{color:'#30363d'},ticks:{color:'#8b949e'}},y:{ticks:{color:'#8b949e'}}},plugins:{legend:{display:false}}}});
+  },100);
+}
+
+// ===== REGULATION =====
+function renderRegulation() {
+  const el = document.getElementById('page-regulation');
+  if (!el) return;
+  el.innerHTML = `<h1 style="font-size:24px;font-weight:800;margin-bottom:6px">法规标准</h1><p style="color:var(--tx2);margin-bottom:20px">智能驾驶相关法规与标准追踪</p>
+    <div style="display:flex;flex-direction:column;gap:12px">${REGULATION_DATA.map(r=>{
+      const sc = r.status==='施行中'||r.status==='已实施'?'s-hot':r.status==='征求意见'?'s-warm':'';
+      return `<div class="vdetail"><div class="vd-top"><span class="vd-ver">${r.title}</span><span class="vd-scope ${sc?'vs-full':''}" style="${sc?'':'background:rgba(88,166,255,.12);color:var(--blue)'}">${r.status}</span><span style="margin-left:auto;font-size:12px;color:var(--tx3)">${r.date} · ${r.org}</span></div><div style="font-size:13px;color:var(--tx2)">${r.desc}</div></div>`}).join('')}</div>`;
+}
+
+// ===== FAVORITES =====
+function renderFavorites() {
+  const el = document.getElementById('page-favorites');
+  if (!el) return;
+  const favNews = NEWS_DATA.filter(n => favs.includes(n.id));
+  el.innerHTML = `<h1 style="font-size:24px;font-weight:800;margin-bottom:6px">我的收藏</h1><p style="color:var(--tx2);margin-bottom:20px">收藏的动态内容</p>` +
+    (favNews.length === 0 ? `<div style="text-align:center;padding:60px;color:var(--tx3)">暂无收藏</div>` :
+    `<div class="news-feed">${favNews.map(n => `<div class="news-item" style="display:flex;justify-content:space-between;align-items:center"><div><div class="news-meta"><span>${n.date}</span><span class="news-tag nt-${n.type}">${n.typeLabel}</span></div><div style="font-weight:600">${n.title}</div></div><button class="btn btn-sm btn-s" onclick="favs=favs.filter(id=>id!==${n.id});localStorage.setItem('z_favs',JSON.stringify(favs));renderFavorites()">取消</button></div>`).join('')}</div>`);
+}
 function renderCollect() {
   const el = document.getElementById('page-collect');
   if (!el) return;
