@@ -1,7 +1,7 @@
 // ==========================================
-// 智驾研究台 — 本地爬虫服务器
+// 智驾研究台 — 本地爬虫服务器 v5
 // 启动: node scraper.js
-// 前端通过 http://localhost:3456/api/scrape 调用
+// 用于抓取指定网页内容 + 搜索关键词
 // ==========================================
 
 const http = require('http');
@@ -13,14 +13,34 @@ function json(res, data, code = 200) {
   res.end(JSON.stringify(data));
 }
 
-function fetchUrl(url) {
+function fetchUrl(url, timeout = 12000) {
   return new Promise((resolve, reject) => {
     const u = new URL(url);
-    const opts = { hostname: u.hostname, path: u.pathname + u.search, method: 'GET', headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36', 'Accept': 'text/html', 'Accept-Language': 'zh-CN,zh;q=0.9' }, timeout: 12000 };
-    const req = https.request(opts, resp => { let chunks = []; resp.on('data', c => chunks.push(c)); resp.on('end', () => resolve(Buffer.concat(chunks).toString('utf8'))); });
-    req.on('error', reject); req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+    const lib = url.startsWith('https') ? https : http;
+    const req = lib.request({
+      hostname: u.hostname, path: u.pathname + u.search, method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+        'Cache-Control': 'no-cache'
+      }, timeout
+    }, resp => {
+      if ([301,302,307,308].includes(resp.statusCode)) {
+        const redirectUrl = resp.headers.location || '';
+        if (redirectUrl) return fetchUrl(redirectUrl.startsWith('http') ? redirectUrl : new URL(redirectUrl, url).href, timeout).then(resolve).catch(reject);
+      }
+      let chunks = []; resp.on('data', c => chunks.push(c));
+      resp.on('end', () => resolve({ status: resp.statusCode, body: Buffer.concat(chunks).toString('utf8'), url }));
+    });
+    req.on('error', reject);
+    req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
     req.end();
   });
+}
+
+function stripHtml(html) {
+  return html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '').replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/&#\d+;/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 function guessSource(url) {
@@ -53,64 +73,34 @@ function findBrand(text) {
   return null;
 }
 
-// 智驾关键词过滤器
-const AUTO_KW = ['智能驾驶', '自动驾驶', '智驾', '辅助驾驶', 'NOA', 'NGP', 'NOP', 'FSD', 'XNGP', 'ADS', 'HSD', 'AD Max', '激光雷达', 'BEV', '端到端', 'OTA', '版本', '实测', '测评', '特斯拉', '小鹏', '理想', '蔚来', '问界', 'SU7', '比亚迪', '地平线', '芯片', '算力', 'TOPS', 'Robotaxi', 'L3', 'L4', 'AEB', '车道保持'];
+async function scrapeUrl(url) {
+  console.log('[抓取] ' + url.slice(0, 80));
+  const { body } = await fetchUrl(url);
 
-function isAutoRelated(text) { return AUTO_KW.some(kw => text.includes(kw)); }
+  // Extract title
+  let title = '';
+  const titleMatch = body.match(/<title[^>]*>([^<]+)<\/title>/i);
+  if (titleMatch) title = titleMatch[1].trim();
 
-function parseBingResults(html, limit) {
-  const results = [];
-  const seen = new Set();
+  // Extract description
+  let desc = '';
+  const descMatch = body.match(/<meta[^>]*name="description"[^>]*content="([^"]+)"/i) || body.match(/<meta[^>]*content="([^"]+)"[^>]*name="description"/i);
+  if (descMatch) desc = descMatch[1];
 
-  // Split by result blocks
-  const blocks = html.split(/<li class="b_algo"/);
-  for (let i = 1; i < blocks.length && results.length < limit; i++) {
-    const block = blocks[i];
+  // Extract main text
+  const text = stripHtml(body).slice(0, 3000);
+  const content = (desc || '') + ' ' + text;
 
-    // Extract URL
-    const urlMatch = block.match(/href="(https?:\/\/[^"]+)"/);
-    if (!urlMatch) continue;
-    const url = urlMatch[1];
-    if (seen.has(url) || url.includes('bing.com') || url.includes('go.microsoft.com')) continue;
-
-    // Extract title - try multiple patterns
-    let title = '';
-    const h2Match = block.match(/<h2>\s*<a[^>]*>([\s\S]*?)<\/a>\s*<\/h2>/i);
-    if (h2Match) title = h2Match[1].replace(/<[^>]+>/g, '').trim();
-    if (!title) {
-      const aMatch = block.match(/<a[^>]*href="https?:\/\/[^"]+"[^>]*>([^<]+)<\/a>/i);
-      if (aMatch) title = aMatch[1].trim();
-    }
-    if (!title || title.length < 5) continue;
-
-    // Extract snippet
-    const pMatch = block.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
-    let snippet = pMatch ? pMatch[1].replace(/<[^>]+>/g, '').replace(/&ensp;/g, ' ').replace(/&#0\d+;/g, '').replace(/&nbsp;/g, ' ').trim() : '';
-
-    const combined = title + ' ' + snippet;
-
-    // Must be auto-related
-    if (!isAutoRelated(combined)) continue;
-
-    seen.add(url);
-    results.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), source: guessSource(url), type: guessType(combined), title, content: snippet.slice(0, 500) || title, date: extractDate(combined), url, parsed: { brand: findBrand(combined) } });
-  }
-
-  // If Bing returned nothing useful, try site-specific searches
-  if (results.length === 0 && html.length > 500 && !html.includes('b_algo')) {
-    // Try extracting any auto-related links from the page
-    const re = /<a[^>]*href="(https?:\/\/[^"]+)"[^>]*>([^<]{10,100})<\/a>/gi;
-    let m;
-    while ((m = re.exec(html)) !== null && results.length < limit) {
-      const url = m[1], text = m[2].replace(/<[^>]+>/g, '').trim();
-      if (!seen.has(url) && url.startsWith('http') && isAutoRelated(text)) {
-        seen.add(url);
-        results.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), source: guessSource(url), type: guessType(text), title: text.slice(0, 80), content: text, date: extractDate(text), url, parsed: { brand: findBrand(text) } });
-      }
-    }
-  }
-
-  return results;
+  return {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    source: guessSource(url),
+    type: guessType(content),
+    title: title || url.slice(0, 60),
+    content: content.slice(0, 1500),
+    date: extractDate(content),
+    url,
+    parsed: { brand: findBrand(content) }
+  };
 }
 
 // ===== Server =====
@@ -122,72 +112,78 @@ const server = http.createServer(async (req, res) => {
     req.on('data', c => body += c);
     req.on('end', async () => {
       try {
-        const { keyword = '', limit = 10 } = JSON.parse(body);
-        if (!keyword) return json(res, { success: false, error: '请输入关键词' }, 400);
+        const { url, urls = [], keyword = '' } = JSON.parse(body);
 
-        console.log(`\n[爬虫] 搜索: "${keyword}"`);
-
-        // Search on Bing (works in China)
-        const query = encodeURIComponent(keyword + ' 智能驾驶 自动驾驶');
-        let allResults = [];
-
-        // Try Bing first
-        try {
-          const bingUrl = `https://cn.bing.com/search?q=${query}&count=20&setlang=zh-cn`;
-          console.log('[爬虫] 请求 Bing...');
-          const html = await fetchUrl(bingUrl);
-          const results = parseBingResults(html, limit);
-          console.log(`[爬虫] Bing 返回 ${results.length} 条智驾相关结果`);
-          allResults.push(...results);
-        } catch (e) {
-          console.log('[爬虫] Bing 请求失败: ' + e.message);
+        // URL 模式：直接抓取指定 URL
+        if (url) {
+          const result = await scrapeUrl(url);
+          return json(res, { success: true, results: [result], keyword: '' });
         }
 
-        // If not enough results, try direct site searches
-        if (allResults.length < limit) {
-          const sites = [
-            { name: '36氪', domain: '36kr.com' },
-            { name: '懂车帝', domain: 'dongchedi.com' },
-            { name: '汽车之家', domain: 'autohome.com.cn' },
-            { name: '第一电动', domain: 'd1ev.com' },
-          ];
-          for (const site of sites) {
-            if (allResults.length >= limit) break;
-            try {
-              const siteQuery = encodeURIComponent(`site:${site.domain} ${keyword} 智能驾驶`);
-              const url = `https://cn.bing.com/search?q=${siteQuery}&count=10&setlang=zh-cn`;
-              console.log(`[爬虫] 搜索 ${site.name}...`);
-              const html = await fetchUrl(url);
-              const results = parseBingResults(html, limit - allResults.length);
-              console.log(`[爬虫]   ${site.name}: ${results.length} 条`);
-              allResults.push(...results);
-            } catch (e) {
-              console.log(`[爬虫]   ${site.name}: 失败`);
+        // 多 URL 模式
+        if (urls.length > 0) {
+          const results = [];
+          for (const u of urls.slice(0, 5)) {
+            try { results.push(await scrapeUrl(u)); } catch (e) { console.log('失败: ' + u.slice(0, 50)); }
+          }
+          return json(res, { success: true, results, keyword: '' });
+        }
+
+        // 关键词模式：尝试通过百度搜索
+        if (keyword) {
+          console.log('[搜索] ' + keyword);
+          try {
+            const query = encodeURIComponent(keyword + ' 智能驾驶');
+            const resp = await fetchUrl(`https://www.baidu.com/s?wd=${query}&rn=10`);
+            // Extract links from Baidu
+            const links = [];
+            const re = /<a[^>]*href="(https?:\/\/[^"]+)"[^>]*data-showurl[^>]*>([\s\S]*?)<\/a>/gi;
+            let m;
+            while ((m = re.exec(resp.body)) !== null) {
+              const href = m[1], text = m[2].replace(/<[^>]+>/g, '').trim();
+              if (href && text && text.length > 5 && !href.includes('baidu.com') && !links.find(l => l.url === href)) {
+                links.push({ url: href, title: text });
+              }
             }
+            // Try broader regex if none found
+            if (links.length === 0) {
+              const re2 = /href="(https?:\/\/[^"]+)"[^>]*>([^<]{10,100})<\/a>/gi;
+              while ((m = re2.exec(resp.body)) !== null) {
+                const href = m[1], text = m[2].replace(/<[^>]+>/g, '').trim();
+                if (href && text && !href.includes('baidu.com') && !links.find(l => l.url === href) && links.length < 10) {
+                  links.push({ url: href, title: text });
+                }
+              }
+            }
+            console.log('[搜索] 找到 ' + links.length + ' 个链接');
+            const results = [];
+            for (const link of links.slice(0, 5)) {
+              try {
+                const r = await scrapeUrl(link.url);
+                if (r.content.length > 100) results.push(r);
+              } catch (e) { continue; }
+            }
+            return json(res, { success: true, results, keyword });
+          } catch (e) {
+            return json(res, { success: false, error: '搜索失败: ' + e.message });
           }
         }
 
-        console.log(`[爬虫] 共 ${allResults.length} 条结果`);
-        json(res, { success: true, results: allResults.slice(0, limit), keyword });
+        return json(res, { success: false, error: '请提供 url 或 keyword' }, 400);
       } catch (e) {
-        console.error('[爬虫] 错误:', e.message);
         json(res, { success: false, error: e.message }, 500);
       }
     });
     return;
   }
 
-  if (req.url === '/health') return json(res, { status: 'ok', message: '智驾研究台爬虫服务器运行中' });
+  if (req.url === '/health') return json(res, { status: 'ok' });
   json(res, { error: 'Not found' }, 404);
 });
 
 server.listen(PORT, () => {
-  console.log('');
-  console.log('  ╔════════════════════════════════════╗');
-  console.log('  ║  智驾研究台 爬虫服务器 v4         ║');
-  console.log(`  ║  http://localhost:${PORT}/api/scrape  ║`);
-  console.log('  ║  搜索引擎: Bing (国内可用)        ║');
-  console.log('  ║  Ctrl+C 停止                      ║');
-  console.log('  ╚════════════════════════════════════╝');
+  console.log('  智驾研究台 爬虫服务器 v5');
+  console.log('  http://localhost:' + PORT + '/api/scrape');
+  console.log('  模式: URL直接抓取 + 百度关键词搜索');
   console.log('');
 });
