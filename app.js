@@ -299,11 +299,19 @@ function renderCollect() {
     </div>` +
     (recordTab==='scrape' ? `
     <div class="collect-form">
-      <p style="color:var(--tx2);font-size:13px;margin-bottom:12px">启动本地爬虫服务器后，输入关键词自动搜索并抓取智能驾驶相关文章。爬虫通过 Bing 搜索 + 智驾关键词过滤，返回结构化数据。</p>
-      <p style="color:var(--tx2);font-size:12px;margin-bottom:8px;background:rgba(88,166,255,0.08);padding:8px 12px;border-radius:6px">启动方法：终端运行 <code style="background:var(--bg);padding:2px 6px;border-radius:3px">node scraper.js</code></p>
-      <div class="form-row"><label>关键词</label><input type="text" id="scrape-kw" placeholder="如: 华为ADS OTA"/></div>
-      <div class="form-row"><label>数量</label><input type="number" id="scrape-n" value="10" min="1" max="30"/></div>
-      <button class="btn btn-p" onclick="runScrape()">开始抓取</button>
+      <p style="color:var(--tx2);font-size:13px;margin-bottom:12px">从网页抓取文章内容，自动识别品牌、类型、日期。支持两种模式：</p>
+      <p style="color:var(--tx2);font-size:12px;margin-bottom:8px;background:rgba(88,166,255,0.08);padding:8px 12px;border-radius:6px">启动爬虫: <code style="background:var(--bg);padding:2px 6px;border-radius:3px">node scraper.js</code>，然后用 <b>本地文件</b> 打开网站</p>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <button class="btn btn-sm${window._scrapeMode!=='url'?' btn-p':' btn-s'}" onclick="window._scrapeMode='kw';renderCollect();recordTab='scrape';renderCollect()">关键词搜索</button>
+        <button class="btn btn-sm${window._scrapeMode==='url'?' btn-p':' btn-s'}" onclick="window._scrapeMode='url';renderCollect();recordTab='scrape';renderCollect()">URL抓取</button>
+      </div>
+      ${window._scrapeMode==='url' ? `
+        <div class="form-row"><label>文章 URL</label><input type="text" id="scrape-url" placeholder="粘贴文章链接，如 https://www.d1ev.com/news/..."/></div>
+        <button class="btn btn-p" onclick="runScrape()">抓取此URL</button>
+      ` : `
+        <div class="form-row"><label>关键词</label><input type="text" id="scrape-kw" placeholder="如: 华为ADS OTA"/></div>
+        <button class="btn btn-p" onclick="runScrape()">搜索并抓取</button>
+      `}
       <div id="scrape-status" style="margin-top:8px;font-size:13px;color:var(--tx2)"></div>
       <div id="scrape-results" style="margin-top:12px"></div>
     </div>` : recordTab==='import' ? `
@@ -387,16 +395,23 @@ function saveAll() {
   localStorage.setItem('z_ci',JSON.stringify(customI));
 }
 async function runScrape() {
-  const kw = document.getElementById('scrape-kw')?.value.trim();
-  if (!kw) { showToast('请输入关键词', 'err'); return; }
-  const n = parseInt(document.getElementById('scrape-n')?.value) || 10;
   const statusEl = document.getElementById('scrape-status'), resultsEl = document.getElementById('scrape-results');
   statusEl.innerHTML = '抓取中...'; resultsEl.innerHTML = '';
 
+  let body = {};
+  if (window._scrapeMode === 'url') {
+    const url = document.getElementById('scrape-url')?.value.trim();
+    if (!url) { showToast('请输入URL', 'err'); return; }
+    body = { url };
+  } else {
+    const kw = document.getElementById('scrape-kw')?.value.trim();
+    if (!kw) { showToast('请输入关键词', 'err'); return; }
+    body = { keyword: kw };
+  }
+
   try {
     const resp = await fetch('http://localhost:3456/api/scrape', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ keyword: kw, limit: n })
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
     });
     const data = await resp.json();
     if (!data.success) { statusEl.innerHTML = '失败: ' + (data.error || '未知'); return; }
@@ -405,15 +420,16 @@ async function runScrape() {
       <div class="vdetail" style="display:flex;justify-content:space-between;align-items:flex-start">
         <div style="flex:1">
           <div style="font-weight:600;font-size:14px;margin-bottom:4px">${r.title}</div>
-          <div style="font-size:12px;color:var(--tx3)">[${r.source}] ${r.type} · ${r.date} · ${r.url.slice(0,50)}</div>
+          <div style="font-size:12px;color:var(--tx3)">[${r.source}] ${r.type} · ${r.date} · ${(r.url||'').slice(0,50)}</div>
           <div style="font-size:12px;color:var(--tx2);margin-top:4px">${r.content.slice(0,150)}</div>
         </div>
-        <button class="btn btn-sm btn-p" onclick="importScrape(${JSON.stringify(r).replace(/"/g,'&quot;')})" style="flex-shrink:0;margin-left:12px">导入</button>
+        <button class="btn btn-sm btn-p" onclick="importScrape(${JSON.stringify(r).replace(/"/g,'&quot;').replace(/'/g,'&#39;')})" style="flex-shrink:0;margin-left:12px">导入</button>
       </div>`).join('');
   } catch (e) {
-    statusEl.innerHTML = '连接失败: 请先启动爬虫服务器 (node scraper.js)';
+    statusEl.innerHTML = '连接失败: 请确保已启动爬虫服务器 (node scraper.js) 且用本地文件打开网站';
   }
 }
+window._scrapeMode = 'kw';
 
 function importScrape(r) {
   if (r.type === 'ota') customV.push({ id: Date.now(), brand: r.parsed?.brand || '', name: BRAND_OPTIONS.find(o => o.key === (r.parsed?.brand || ''))?.name || '', version: '', date: r.date || new Date().toISOString().slice(0, 10), chip: '', arch: '', scope: '灰度', riskLevel: '低', features: [], desc: r.title + '\n' + r.content });
