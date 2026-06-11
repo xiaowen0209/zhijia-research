@@ -37,7 +37,7 @@ function switchPage(p) {
   const pages = {
     home: renderHome, compare: renderCompare, matrix: renderMatrix,
     scenario: renderScenario, versions: renderVersions, ota: renderOTA,
-    dataviz: renderDataViz, glossary: renderGlossary, regulation: renderRegulation,
+    dataviz: renderDataViz, glossary: renderGlossary,
     collect: renderCollect, favorites: renderFavorites
   };
   mc.innerHTML = '<div class="page active" id="page-'+p+'"></div>';
@@ -60,7 +60,7 @@ function renderHome() {
       <div class="stat-box" onclick="switchPage('compare')"><div class="stat-num">7</div><div class="stat-label">监测方案</div></div>
       <div class="stat-box" onclick="switchPage('scenario')"><div class="stat-num">8</div><div class="stat-label">测试场景</div></div>
       <div class="stat-box" onclick="switchPage('versions')"><div class="stat-num">${totalV}</div><div class="stat-label">版本记录</div></div>
-      <div class="stat-box"><div class="stat-num">96</div><div class="stat-label">专业术语</div></div>
+      <div class="stat-box" onclick="switchPage('glossary')"><div class="stat-num">95</div><div class="stat-label">专业术语</div></div>
     </div>
     <div class="section"><div class="section-title">排行速览</div>
       <div class="rank-list">${top3.map((s,i) => {
@@ -273,16 +273,6 @@ function renderDataViz() {
   },100);
 }
 
-// ===== REGULATION =====
-function renderRegulation() {
-  const el = document.getElementById('page-regulation');
-  if (!el) return;
-  el.innerHTML = `<h1 style="font-size:24px;font-weight:800;margin-bottom:6px">法规标准</h1><p style="color:var(--tx2);margin-bottom:20px">智能驾驶相关法规与标准追踪</p>
-    <div style="display:flex;flex-direction:column;gap:12px">${REGULATION_DATA.map(r=>{
-      const sc = r.status==='施行中'||r.status==='已实施'?'s-hot':r.status==='征求意见'?'s-warm':'';
-      return `<div class="vdetail"><div class="vd-top"><span class="vd-ver">${r.title}</span><span class="vd-scope ${sc?'vs-full':''}" style="${sc?'':'background:rgba(88,166,255,.12);color:var(--blue)'}">${r.status}</span><span style="margin-left:auto;font-size:12px;color:var(--tx3)">${r.date} · ${r.org}</span></div><div style="font-size:13px;color:var(--tx2)">${r.desc}</div></div>`}).join('')}</div>`;
-}
-
 // ===== FAVORITES =====
 function renderFavorites() {
   const el = document.getElementById('page-favorites');
@@ -305,8 +295,18 @@ function renderCollect() {
     <div style="display:flex;gap:8px;margin-bottom:16px">
       ${Object.entries(tabs).map(([k,v])=>`<button class="btn${recordTab===k?' btn-p':' btn-s'}" onclick="recordTab='${k}';renderCollect()">${v}</button>`).join('')}
       <button class="btn${recordTab==='import'?' btn-p':' btn-s'}" onclick="recordTab='import';renderCollect()">文本导入</button>
+      <button class="btn${recordTab==='scrape'?' btn-p':' btn-s'}" onclick="recordTab='scrape';renderCollect()">爬虫抓取</button>
     </div>` +
-    (recordTab==='import' ? `
+    (recordTab==='scrape' ? `
+    <div class="collect-form">
+      <p style="color:var(--tx2);font-size:13px;margin-bottom:12px">启动本地爬虫服务器后，输入关键词自动搜索并抓取智能驾驶相关文章。爬虫通过 Bing 搜索 + 智驾关键词过滤，返回结构化数据。</p>
+      <p style="color:var(--tx2);font-size:12px;margin-bottom:8px;background:rgba(88,166,255,0.08);padding:8px 12px;border-radius:6px">启动方法：终端运行 <code style="background:var(--bg);padding:2px 6px;border-radius:3px">node scraper.js</code></p>
+      <div class="form-row"><label>关键词</label><input type="text" id="scrape-kw" placeholder="如: 华为ADS OTA"/></div>
+      <div class="form-row"><label>数量</label><input type="number" id="scrape-n" value="10" min="1" max="30"/></div>
+      <button class="btn btn-p" onclick="runScrape()">开始抓取</button>
+      <div id="scrape-status" style="margin-top:8px;font-size:13px;color:var(--tx2)"></div>
+      <div id="scrape-results" style="margin-top:12px"></div>
+    </div>` : recordTab==='import' ? `
     <div class="collect-form">
       <p style="color:var(--tx2);font-size:13px;margin-bottom:12px">在 36氪、懂车帝、汽车之家、知乎 等网站复制智能驾驶相关文章内容，粘贴到下方即可自动提取品牌、版本、日期等信息</p>
       <div class="form-row"><textarea id="import-text" rows="12" placeholder="粘贴网页文章内容..."></textarea></div>
@@ -386,6 +386,42 @@ function saveAll() {
   localStorage.setItem('z_ct',JSON.stringify(customT));
   localStorage.setItem('z_ci',JSON.stringify(customI));
 }
+async function runScrape() {
+  const kw = document.getElementById('scrape-kw')?.value.trim();
+  if (!kw) { showToast('请输入关键词', 'err'); return; }
+  const n = parseInt(document.getElementById('scrape-n')?.value) || 10;
+  const statusEl = document.getElementById('scrape-status'), resultsEl = document.getElementById('scrape-results');
+  statusEl.innerHTML = '抓取中...'; resultsEl.innerHTML = '';
+
+  try {
+    const resp = await fetch('http://localhost:3456/api/scrape', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ keyword: kw, limit: n })
+    });
+    const data = await resp.json();
+    if (!data.success) { statusEl.innerHTML = '失败: ' + (data.error || '未知'); return; }
+    statusEl.innerHTML = `找到 ${data.results.length} 条结果`;
+    resultsEl.innerHTML = data.results.map(r => `
+      <div class="vdetail" style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:14px;margin-bottom:4px">${r.title}</div>
+          <div style="font-size:12px;color:var(--tx3)">[${r.source}] ${r.type} · ${r.date} · ${r.url.slice(0,50)}</div>
+          <div style="font-size:12px;color:var(--tx2);margin-top:4px">${r.content.slice(0,150)}</div>
+        </div>
+        <button class="btn btn-sm btn-p" onclick="importScrape(${JSON.stringify(r).replace(/"/g,'&quot;')})" style="flex-shrink:0;margin-left:12px">导入</button>
+      </div>`).join('');
+  } catch (e) {
+    statusEl.innerHTML = '连接失败: 请先启动爬虫服务器 (node scraper.js)';
+  }
+}
+
+function importScrape(r) {
+  if (r.type === 'ota') customV.push({ id: Date.now(), brand: r.parsed?.brand || '', name: BRAND_OPTIONS.find(o => o.key === (r.parsed?.brand || ''))?.name || '', version: '', date: r.date || new Date().toISOString().slice(0, 10), chip: '', arch: '', scope: '灰度', riskLevel: '低', features: [], desc: r.title + '\n' + r.content });
+  else if (r.type === 'test') customT.push({ id: Date.now(), brand: r.parsed?.brand || '', title: r.title, date: r.date || new Date().toISOString().slice(0, 10), location: '', vehicle: '', score: { city: 0, highway: 0, parking: 0 }, scenes: [], highlights: r.content });
+  else customI.push({ id: Date.now(), brand: r.parsed?.brand || '', level: 'P2', category: '其他', desc: r.title + '\n' + r.content, date: r.date || new Date().toISOString().slice(0, 10) });
+  saveAll(); showToast('已导入');
+}
+
 function showToast(msg,type='ok') {
   let c = document.getElementById('toast'); if(!c){c=document.createElement('div');c.id='toast';document.body.appendChild(c);}
   const t = document.createElement('div');t.className='toast toast-'+type;t.textContent=msg;c.appendChild(t);
